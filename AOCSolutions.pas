@@ -14,7 +14,12 @@ uses
 
 type
   TAdventOfCodeDay1 = class(TAdventOfCode)
+  private
+    IdList1, IdList2: TList<integer>;
+    Counts: TDictionary<integer, integer>;
   protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -29,22 +34,61 @@ type
 implementation
 
 {$REGION 'TAdventOfCodeDay1'}
-function TAdventOfCodeDay1.SolveA: Variant;
+procedure TAdventOfCodeDay1.BeforeSolve;
 var
   s: string;
   split: TStringDynArray;
+  id2, cnt: integer;
 begin
+  inherited;
+
+  IdList1 := TList<integer>.Create;;
+  IdList2 := TList<integer>.Create;;
+  Counts := TDictionary<integer, integer>.Create;
+
   for s in FInput do
-    split := SplitString(s, '-');
+  begin
+    split := SplitString(s, ' ');
 
-  Result := 7734;
+    IdList1.Add(split[0].ToInteger);
+    id2 := split[length(split)-1].ToInteger;
+    IdList2.Add(id2);
+    Counts.TryGetValue(id2, cnt);
+    Counts.AddOrSetValue(id2, cnt + 1);
+  end;
+end;
 
+procedure TAdventOfCodeDay1.AfterSolve;
+begin
+  inherited;
 
+  IdList1.Free;
+  IdList2.Free;
+  Counts.Free;
+end;
+
+function TAdventOfCodeDay1.SolveA: Variant;
+var
+  i: integer;
+begin
+  IdList1.Sort;
+  IdList2.Sort;
+
+  Result := 0;
+  for i := 0 to IdList1.Count -1 do
+    result := Result + Abs(IdList1[i] - IdList2[i]);
 end;
 
 function TAdventOfCodeDay1.SolveB: Variant;
+var
+  i, cnt: integer;
 begin
-  Result := Null
+  Result := 0;
+  for i in idList1 do
+  begin
+    Counts.TryGetValue(i, cnt);
+    result := Result + i * cnt;
+  end;
 end;
 {$ENDREGION}
 
