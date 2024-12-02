@@ -53,8 +53,8 @@ var
 begin
   inherited;
 
-  IdList1 := TList<integer>.Create;;
-  IdList2 := TList<integer>.Create;;
+  IdList1 := TList<integer>.Create;
+  IdList2 := TList<integer>.Create;
   Counts := TDictionary<integer, integer>.Create;
 
   for s in FInput do
@@ -118,8 +118,8 @@ begin
     SetLength(Report, Length(split));
     for i := 0 to Length(split)-1 do
       Report[i] := Split[i].ToInteger; 
-  
-    if IsReportSave(Report) then
+
+    if (not TolerateBadLevel) and IsReportSave(Report) then
       Result := Result + 1
     else if TolerateBadLevel then
     begin
@@ -136,31 +136,22 @@ begin
 end;
 
 function TAdventOfCodeDay2.IsReportSave(aRepport: IntegerArray; idxToIgnore: integer = -1): Boolean;
-var
-  i, tmpIdx, diff, CheckSign, CurrentSign: integer;
-  tmpReport: IntegerArray;
-begin
-  tmpReport := aRepport;
-  if idxToIgnore >= 0 then
+
+  function _idx(i: integer): integer;
   begin
-    SetLength(tmpReport, Length(aRepport)-1);
-
-    tmpIdx := 0;
-    for i := 0 to Length(aRepport) -1 do
-    begin
-      if i = idxToIgnore then
-        Continue;
-
-      tmpReport[tmpIdx] := aRepport[i];
-      inc(tmpIdx);
-    end;
+    Result := i;
+    if (idxToIgnore >= 0) and (IdxToIgnore <= i) then
+      Inc(Result);
   end;
 
-  CheckSign := Sign(tmpReport[1] - tmpReport[0]);
-  for i := 1 to Length(tmpReport) -1 do
+var
+  i, diff, CheckSign, CurrentSign: integer;
+begin
+  CheckSign := Sign(aRepport[_idx(1)] - aRepport[_idx(0)]);
+  for i := 1 to Length(aRepport) -1 - ifthen(idxToIgnore >= 0, 1, 0) do
   begin
-    CurrentSign := Sign(tmpReport[i] - tmpReport[i-1]);
-    diff := abs(tmpReport[i] - tmpReport[i-1]);
+    CurrentSign := Sign(aRepport[_idx(i)] - aRepport[_idx(i-1)]);
+    diff := abs(aRepport[_idx(i)] - aRepport[_idx(i-1)]);
     if (CheckSign <> CurrentSign) or (diff < 1) or (diff > 3) then
       Exit(False)
   end;
