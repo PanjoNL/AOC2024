@@ -35,6 +35,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay3 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -169,6 +178,56 @@ begin
   Result := CheckReactor(True);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay3'}
+procedure TAdventOfCodeDay3.BeforeSolve;
+var
+  i: Integer;
+  mulResult: Int64;
+  s: string;
+  split: TStringDynArray;
+  Regex: TRegEx;
+  Matches: TMatchCollection;
+  Match: TMatch;
+  Enabled: Boolean;
+begin
+  SolutionA := 0;
+  SolutionB := 0;
+
+  Regex := TRegex.Create('mul\(\d*,\d*\)|do\(\)|don''t\(\)');
+
+  Enabled := True;
+  for s in FInput do
+  begin
+    Matches := RegEx.Matches(s);
+    for match in Matches do
+    begin
+      if Match.Value = 'do()' then
+        Enabled := True
+      else if Match.Value = 'don''t()' then
+        Enabled := False
+      else
+      begin
+        Split := SplitString(Copy(Match.Value, 5, Length(Match.Value)-5), ',');
+        mulResult := Split[0].ToInt64 * Split[1].ToInt64;
+        Inc(SolutionA, mulResult);
+
+        if Enabled then
+          Inc(SolutionB, mulResult);
+      end;
+    end;
+  end;
+end;
+
+function TAdventOfCodeDay3.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay3.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -185,7 +244,7 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3
   ]);
 
 end.

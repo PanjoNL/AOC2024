@@ -6,3 +6,7 @@
 /.vs
 /Win32/Debug
 /__history
+/__recovery
+*.local
+*.identcache
+*.cbk
