@@ -44,6 +44,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay4 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -181,7 +190,6 @@ end;
 {$REGION 'TAdventOfCodeDay3'}
 procedure TAdventOfCodeDay3.BeforeSolve;
 var
-  i: Integer;
   mulResult: Int64;
   s: string;
   split: TStringDynArray;
@@ -228,6 +236,59 @@ begin
   Result := SolutionB;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay4'}
+procedure TAdventOfCodeDay4.BeforeSolve;
+const
+  DeltaX: array[0..7] of integer = (1,1,1,0,0,-1,-1,-1);
+  DeltaY: array[0..7] of Integer = (-1,0,1,-1,1,-1,0,1);
+  DeltaX_2: array[0..3] of integer = (1,1,-1,-1);
+  DeltaY_2: array[0..3] of Integer = (1,-1,-1,1);
+var
+  x,y,i,MaxY,MaxX: Integer;
+
+  function _checkPos(const aX, aY: integer; Const aChar: string): Boolean;
+  begin
+    Result := InRange(aX, 1, MaxX) and InRange(aY, 0, MaxY) and SameText(FInput[aY][aX], aChar);
+  end;
+
+begin
+  MaxY := FInput.Count-1;
+  MaxX := Length(FInput[0]);
+
+  SolutionA := 0;
+  SolutionB := 0;
+
+  for x := 1 to MaxX do
+    for y := 0 to MaxY do
+    begin
+
+      if _checkPos(x, y, 'X') then
+        for i := 0 to 7 do
+          if _checkPos(x + DeltaX[i] * 1, Y + DeltaY[i] * 1, 'M') and
+             _checkPos(x + DeltaX[i] * 2, Y + DeltaY[i] * 2, 'A') and
+             _checkPos(x + DeltaX[i] * 3, Y + DeltaY[i] * 3, 'S') then
+            inc(SolutionA);
+
+      if _checkPos(x, y, 'A') then
+        for i := 0 to 3 do
+          if _checkPos(x + DeltaX_2[(i+0) mod 4], Y + DeltaY_2[(i+0) mod 4], 'M') and
+             _checkPos(x + DeltaX_2[(i+1) mod 4], Y + DeltaY_2[(i+1) mod 4], 'M') and
+             _checkPos(x + DeltaX_2[(i+2) mod 4], Y + DeltaY_2[(i+2) mod 4], 'S') and
+             _checkPos(x + DeltaX_2[(i+3) mod 4], Y + DeltaY_2[(i+3) mod 4], 'S') then
+            inc(SolutionB);
+    end;
+end;
+
+function TAdventOfCodeDay4.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay4.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -244,7 +305,7 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4
   ]);
 
 end.
