@@ -8,7 +8,7 @@ uses
 
 type
   TAdventOfCodeRef = class of TAdventOfCode;
-  TAOCDirection = (North = 0, East, South, West);
+  TAOCDirection = (N, NE, E, SE, S, SW, W, NW);
   TAOCDirections = set of TAOCDirection;
 
 type AOCUtils = class
@@ -238,11 +238,16 @@ end;
 function TPosition.ApplyDirection(Const aDirection: TAOCDirection; aDelta: Int64 = 1): TPosition;
 begin
   case aDirection of
-    North: AddDelta(0, -aDelta);
-    East: AddDelta(aDelta, 0);
-    South: AddDelta(0, aDelta);
-    West: AddDelta(-aDelta, 0);
+    N:  AddDelta(-aDelta, 0);
+    NE: AddDelta(-aDelta, aDelta);
+    E:  AddDelta(0, aDelta);
+    SE: AddDelta(aDelta, aDelta);
+    S:  AddDelta(aDelta, 0);
+    SW: AddDelta(aDelta, -aDelta);
+    W:  AddDelta(0, -aDelta);
+    NW: AddDelta(-aDelta, -aDelta);
   end;
+
   Result := Self
 end;
 

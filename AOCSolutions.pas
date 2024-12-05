@@ -246,6 +246,67 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay4'}
+type
+  TAocGrid = class
+    FData: TDictionary<int64,char>;
+    FMaxX, FMaxY: integer;
+
+  public
+    constructor create(aStrings: TStrings); reintroduce;
+    destructor Destroy; override;
+
+    procedure PrintToDebug;
+    function TryGetValue(aX, aY: integer; out aValue: char): boolean;
+
+    property MaxX: integer read FMaxX;
+    property MaxY: integer read FMaxY;
+
+
+  end;
+
+{ TAocGrid }
+
+constructor TAocGrid.create(aStrings: TStrings);
+var
+  tmpX, tmpY: Integer;
+begin
+  FData := TDictionary<int64,Char>.Create;
+  FMaxX := Length(aStrings[0]) -1;
+  FMaxY := aStrings.Count -1;
+
+  for tmpY := 0 to MaxY do
+    for tmpX := 0 to MaxX do
+      FData.Add(TPosition.Create(tmpX, tmpY).CacheKey, aStrings[tmpY][tmpX+1]);
+end;
+
+destructor TAocGrid.Destroy;
+begin
+  FData.Free;
+  inherited;
+end;
+
+procedure TAocGrid.PrintToDebug;
+var
+  x, y: integer;
+  s: string;
+begin
+  Writeln('');
+  for y := 0 to MaxY do
+  begin
+    s := '';
+    for x := 0 to MaxX do
+      s := s + FData[TPosition.Create(x, y).CacheKey];
+    Writeln(s);
+  end;
+end;
+
+function TAocGrid.TryGetValue(aX, aY: integer; out aValue: char): boolean;
+begin
+  Result := False;
+  if InRange(aX, 0, MaxX) and InRange(aY, 0, MaxY) then
+    Result := FData.TryGetValue(TPosition.Create(aX, aY).CacheKey, aValue);
+end;
+
 procedure TAdventOfCodeDay4.BeforeSolve;
 const
   DeltaX: array[0..7] of integer = (1,1,1,0,0,-1,-1,-1);
@@ -253,39 +314,37 @@ const
   DeltaX_2: array[0..3] of integer = (1,1,-1,-1);
   DeltaY_2: array[0..3] of Integer = (1,-1,-1,1);
 var
-  x,y,i,MaxY,MaxX: Integer;
-
-  function _checkPos(const aX, aY: integer; Const aChar: string): Boolean;
-  begin
-    Result := InRange(aX, 1, MaxX) and InRange(aY, 0, MaxY) and SameText(FInput[aY][aX], aChar);
-  end;
-
+  x,y,i: Integer;
+  Grid: TAocGrid;
+  chr: Char;
+  Pos: TPosition;
 begin
-  MaxY := FInput.Count-1;
-  MaxX := Length(FInput[0]);
-
   SolutionA := 0;
   SolutionB := 0;
+  Grid := TAocGrid.create(FInput);
 
-  for x := 1 to MaxX do
-    for y := 0 to MaxY do
+  for x := 0 to Grid.MaxX do
+    for y := 0 to Grid.MaxY do
     begin
+      Pos := TPosition.Create(x, y)
 
-      if _checkPos(x, y, 'X') then
+      if Grid.TryGetValue(x, y, chr) and (chr = 'X') then
         for i := 0 to 7 do
-          if _checkPos(x + DeltaX[i] * 1, Y + DeltaY[i] * 1, 'M') and
-             _checkPos(x + DeltaX[i] * 2, Y + DeltaY[i] * 2, 'A') and
-             _checkPos(x + DeltaX[i] * 3, Y + DeltaY[i] * 3, 'S') then
+          if Grid.TryGetValue(x + DeltaX[i] * 3, Y + DeltaY[i] * 3, chr) and (chr = 'S') and
+             Grid.TryGetValue(x + DeltaX[i] * 2, Y + DeltaY[i] * 2, chr) and (chr = 'A') and
+             Grid.TryGetValue(x + DeltaX[i] * 1, Y + DeltaY[i] * 1, chr) and (chr = 'M') then
             inc(SolutionA);
 
-      if _checkPos(x, y, 'A') then
+      if Grid.TryGetValue(x, y, chr) and (chr = 'A') then
         for i := 0 to 3 do
-          if _checkPos(x + DeltaX_2[(i+0) mod 4], Y + DeltaY_2[(i+0) mod 4], 'M') and
-             _checkPos(x + DeltaX_2[(i+1) mod 4], Y + DeltaY_2[(i+1) mod 4], 'M') and
-             _checkPos(x + DeltaX_2[(i+2) mod 4], Y + DeltaY_2[(i+2) mod 4], 'S') and
-             _checkPos(x + DeltaX_2[(i+3) mod 4], Y + DeltaY_2[(i+3) mod 4], 'S') then
+          if Grid.TryGetValue(x + DeltaX_2[(i+0) mod 4], Y + DeltaY_2[(i+0) mod 4], chr) and (chr = 'M') and
+             Grid.TryGetValue(x + DeltaX_2[(i+1) mod 4], Y + DeltaY_2[(i+1) mod 4], chr) and (chr = 'M') and
+             Grid.TryGetValue(x + DeltaX_2[(i+2) mod 4], Y + DeltaY_2[(i+2) mod 4], chr) and (chr = 'S') and
+             Grid.TryGetValue(x + DeltaX_2[(i+3) mod 4], Y + DeltaY_2[(i+3) mod 4], chr) and (chr = 'S') then
             inc(SolutionB);
     end;
+
+  Grid.Free
 end;
 
 function TAdventOfCodeDay4.SolveA: Variant;
@@ -331,13 +390,13 @@ end;
 
 function TPageComparer.Compare(const Left, Right: integer): Integer;
 begin
-  Result := -1;
+  Result := 1;
 
   if Left = Right then
     Exit(0);
 
   if not FRules[GenerateKey(Left, Right)] then
-    Result := 1
+    Result := -1
 end;
 
 procedure TPageComparer.AddGreaterThenRule(x, y: integer);
