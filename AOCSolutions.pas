@@ -62,6 +62,19 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay6 = class(TAdventOfCode)
+  private
+    FGrid: TAocGrid;
+    FGaurdStartPosition: TPosition;
+    BaseSeenCells: TDictionary<TPosition,TAOCDirections>;
+    procedure FindPath(aSeenCells: TDictionary<TPosition,TAOCDirections>; BlockX, BlockY: integer);
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -426,6 +439,105 @@ begin
   Result := SolutionB;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay6'}
+
+procedure TAdventOfCodeDay6.BeforeSolve;
+var
+  x,y: integer;
+  chr: char;
+begin
+  inherited;
+
+  FGrid := TAocGrid.Create(FInput);
+  BaseSeenCells := TDictionary<TPosition,TAOCDirections>.Create;
+
+  for x := 0 to FGrid.MaxX do
+    for y := 0 to FGrid.MaxY do
+    begin
+      if FGrid.TryGetValue(x, y, chr) and (chr = '^') then
+      begin
+        FGaurdStartPosition := TPosition.Create(x, y);
+        break;
+      end;
+    end;
+
+  FindPath(BaseSeenCells, -1, -1)
+end;
+
+procedure TAdventOfCodeDay6.AfterSolve;
+begin
+  inherited;
+
+  FGrid.Free;
+  BaseSeenCells.Free;
+end;
+
+
+procedure TAdventOfCodeDay6.FindPath(aSeenCells: TDictionary<TPosition, TAOCDirections>; BlockX, BlockY: integer);
+var
+  GaurdPosition, Next: TPosition;
+  GaurdFacing: TAOCDirection;
+  GaurdFacings: TAOCDirections;
+  chr: char;
+begin
+  GaurdFacing := TAOCDirection.North;
+  GaurdPosition := FGaurdStartPosition.Clone;
+
+  aSeenCells.Add(GaurdPosition, []);
+  while True do
+  begin
+    next := GaurdPosition.Clone.ApplyDirection(GaurdFacing);
+    if not FGrid.TryGetValue(next.x, next.y, Chr) then
+      Break; // Out of bounds
+
+    if (chr = '#') or ((Next.X = BlockX) and (Next.Y = BlockY)) then
+      GaurdFacing := TAOCDirection((ord(GaurdFacing) + 1) mod 4)
+    else
+    begin
+      GaurdPosition := next;
+
+      if aSeenCells.TryGetValue(next, GaurdFacings) then
+      begin
+        if GaurdFacing in GaurdFacings then // Cycle detected
+        begin
+          aSeenCells.Clear;
+          exit;
+        end;
+      end;
+
+      aSeenCells.AddOrSetValue(next, GaurdFacings + [GaurdFacing]);
+    end;
+  end;
+end;
+
+function TAdventOfCodeDay6.SolveA: Variant;
+begin
+  Result := BaseSeenCells.Count;
+end;
+
+function TAdventOfCodeDay6.SolveB: Variant;
+var
+  Block: TPosition;
+  Seen: TDictionary<TPosition,TAOCDirections>;
+begin
+  Seen := TDictionary<TPosition,TAOCDirections>.Create;
+  Result := 0;
+  for Block in BaseSeenCells.Keys do
+  begin
+    if Block.CacheKey = FGaurdStartPosition.CacheKey then
+      Continue;
+
+    FindPath(Seen, Block.X, Block.Y);
+    if Seen.Count = 0 then
+      Inc(Result);
+
+    Seen.Clear;
+  end;
+
+  Seen.Free;
+end;
+{$ENDREGION}
+
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -442,7 +554,8 @@ end;
 initialization
 
 RegisterClasses([
-  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5
+  TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
+  TAdventOfCodeDay6
   ]);
 
 end.

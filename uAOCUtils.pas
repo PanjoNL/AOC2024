@@ -54,6 +54,23 @@ type
     class function Max(a, b: TPosition3): TPosition3; static;
   end;
 
+  TAocGrid = class
+  private
+    FData: TDictionary<int64,char>;
+    FMaxX, FMaxY: integer;
+  public
+    constructor create(aStrings: TStrings); reintroduce;
+    destructor Destroy; override;
+
+    procedure PrintToDebug;
+    procedure SetData(aX, aY: integer; chr: char);
+    function TryGetValue(aX, aY: integer; out aValue: char): boolean;
+
+    property MaxX: integer read FMaxX;
+    property MaxY: integer read FMaxY;
+  end;
+
+
 function GCD(Number1, Number2: int64): int64;
 function LCM(Number1, Number2: int64): int64;
 function OccurrencesOfChar(const S: string; const C: string): integer;
@@ -289,6 +306,53 @@ begin
   Result.x := Math.Min(a.x, b.x);
   Result.y := Math.Min(a.y, b.y);
   Result.z := Math.Min(a.z, b.z);
+end;
+
+
+constructor TAocGrid.create(aStrings: TStrings);
+var
+  tmpX, tmpY: Integer;
+begin
+  FData := TDictionary<int64,Char>.Create;
+  FMaxX := Length(aStrings[0]) -1;
+  FMaxY := aStrings.Count -1;
+
+  for tmpY := 0 to MaxY do
+    for tmpX := 0 to MaxX do
+      FData.Add(TPosition.Create(tmpX, tmpY).CacheKey, aStrings[tmpY][tmpX+1]);
+end;
+
+destructor TAocGrid.Destroy;
+begin
+  FData.Free;
+  inherited;
+end;
+
+procedure TAocGrid.PrintToDebug;
+var
+  x, y: integer;
+  s: string;
+begin
+  Writeln('');
+  for y := 0 to MaxY do
+  begin
+    s := '';
+    for x := 0 to MaxX do
+      s := s + FData[TPosition.Create(x, y).CacheKey];
+    Writeln(s);
+  end;
+end;
+
+procedure TAocGrid.SetData(aX, aY: integer; chr: char);
+begin
+  FData.AddOrSetValue(TPosition.Create(aX, aY).CacheKey, chr);
+end;
+
+function TAocGrid.TryGetValue(aX, aY: integer; out aValue: char): boolean;
+begin
+  Result := False;
+  if InRange(aX, 0, MaxX) and InRange(aY, 0, MaxY) then
+    Result := FData.TryGetValue(TPosition.Create(aX, aY).CacheKey, aValue);
 end;
 
 function GCD(Number1, Number2: int64): int64;
