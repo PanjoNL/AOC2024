@@ -10,7 +10,7 @@ uses
   System.StrUtils,
   System.Math, uAOCUtils, System.Types, PriorityQueues, System.Json,
   AocLetterReader, uAOCTimer,
-  System.Threading, system.Hash;
+  System.Threading, System.SyncObjs, system.Hash;
 
 type
   IntegerArray = Array Of Integer;
@@ -344,13 +344,13 @@ end;
 
 function TPageComparer.Compare(const Left, Right: integer): Integer;
 begin
-  Result := -1;
+  Result := 1;
 
   if Left = Right then
     Exit(0);
 
   if not FRules[GenerateKey(Left, Right)] then
-    Result := 1
+    Result := -1
 end;
 
 procedure TPageComparer.AddGreaterThenRule(x, y: integer);
@@ -517,24 +517,43 @@ end;
 
 function TAdventOfCodeDay6.SolveB: Variant;
 var
+  PossibleBlocks: Integer;
+
+  function CreateTask(aBlock: TPosition): ITask;
+  begin
+    Result := TTask.Create(procedure()
+      var
+        Seen: TDictionary<TPosition,TAOCDirections>;
+      begin
+        Seen := TDictionary<TPosition,TAOCDirections>.Create;
+        FindPath(Seen, aBlock.X, aBlock.Y);
+        if Seen.Count = 0 then
+          TInterlocked.Increment(PossibleBlocks);
+        Seen.Free;
+      end);
+  end;
+
+var
   Block: TPosition;
-  Seen: TDictionary<TPosition,TAOCDirections>;
+  Tasks: TList<ITask>;
+  Task: ITask;
 begin
-  Seen := TDictionary<TPosition,TAOCDirections>.Create;
-  Result := 0;
+  PossibleBlocks := 0;
+  Tasks := TList<ITask>.Create;
+
   for Block in BaseSeenCells.Keys do
   begin
     if Block.CacheKey = FGaurdStartPosition.CacheKey then
       Continue;
 
-    FindPath(Seen, Block.X, Block.Y);
-    if Seen.Count = 0 then
-      Inc(Result);
-
-    Seen.Clear;
+    Task := CreateTask(Block);
+    Task.Start;
+    Tasks.Add(Task);
   end;
 
-  Seen.Free;
+  TTask.WaitForAll (tasks.ToArray);
+  Result := PossibleBlocks;
+  Tasks.Free;
 end;
 {$ENDREGION}
 
