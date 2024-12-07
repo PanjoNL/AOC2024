@@ -75,6 +75,14 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay7 = class(TAdventOfCode)
+  private
+    function Solve(aUseConcatenation: boolean): int64;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -440,7 +448,6 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay6'}
-
 procedure TAdventOfCodeDay6.BeforeSolve;
 var
   x,y: integer;
@@ -471,7 +478,6 @@ begin
   FGrid.Free;
   BaseSeenCells.Free;
 end;
-
 
 procedure TAdventOfCodeDay6.FindPath(aSeenCells: TDictionary<TPosition, TAOCDirections>; BlockX, BlockY: integer);
 var
@@ -556,7 +562,56 @@ begin
   Tasks.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay7'}
+function TAdventOfCodeDay7.Solve(aUseConcatenation: boolean): int64;
 
+  function Calc(values: TStringDynArray; const aTarget, aCurrent, aIndex: int64): boolean;
+  var
+    strValue: string;
+    value: int64;
+  begin
+    if aIndex >= Length(Values) then
+      exit(aTarget = aCurrent);
+
+    if aCurrent > aTarget then
+      Exit(false);
+
+    strValue := values[aIndex];
+    value := strValue.ToInt64;
+
+    Result :=
+      Calc(Values, aTarget, aCurrent + value, aIndex + 1) or
+      Calc(Values, aTarget, aCurrent * value, aIndex + 1) or
+      (aUseConcatenation and Calc(Values, aTarget, Trunc(Power(10, Length(strValue))) * aCurrent + value, aIndex + 1));
+  end;
+
+var
+  target: int64;
+  s: string;
+  split: TStringDynArray;
+begin
+  Result := 0;
+
+  for s in FInput do
+  begin
+    split := SplitString(s, ': ');
+
+    target := Split[0].ToInt64;
+    if Calc(split, target, split[2].ToInt64, 3) then
+      Inc(result, target);
+  end;
+end;
+
+function TAdventOfCodeDay7.SolveA: Variant;
+begin
+  Result := Solve(False);
+end;
+
+function TAdventOfCodeDay7.SolveB: Variant;
+begin
+  Result := Solve(True);
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -574,7 +629,7 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6
+  TAdventOfCodeDay6, TAdventOfCodeDay7
   ]);
 
 end.
