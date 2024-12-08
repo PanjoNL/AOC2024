@@ -64,13 +64,9 @@ type
 
   TAdventOfCodeDay6 = class(TAdventOfCode)
   private
-    FGrid: TAocGrid;
-    FGaurdStartPosition: TPosition;
-    BaseSeenCells: TDictionary<TPosition,TAOCDirections>;
-    procedure FindPath(aSeenCells: TDictionary<TPosition,TAOCDirections>; BlockX, BlockY: integer);
+    SolutionA, SolutionB: integer;
   protected
     procedure BeforeSolve; override;
-    procedure AfterSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -459,116 +455,119 @@ end;
 {$REGION 'TAdventOfCodeDay6'}
 procedure TAdventOfCodeDay6.BeforeSolve;
 var
+  Grid: TAocGrid;
+
+  function _CreateTask(aGaurdPosition, aBlock: TPosition; aGaurdFacing: TAOCDirection): ITask;
+  begin
+    Result := TTask.Create(procedure()
+      var
+        Seen: TDictionary<TPosition, TAOCDirections>;
+        GaurdPosition, Next: TPosition;
+        GaurdFacing: TAOCDirection;
+        GaurdFacings: TAOCDirections;
+        chr: Char;
+      begin
+        Seen := TDictionary<TPosition, TAOCDirections>.Create;
+        GaurdPosition := aGaurdPosition;
+        GaurdFacing := aGaurdFacing;
+
+        try
+          while True do
+          begin
+            next := GaurdPosition.Clone.ApplyDirection(GaurdFacing);
+            if not Grid.TryGetValue(next.x, next.y, Chr) then
+              Exit;
+
+            if (chr = '#') or (next.CacheKey = aBlock.CacheKey) then
+            begin
+              GaurdFacing := TAOCDirection((ord(GaurdFacing) + 1) mod 4);
+
+              if Seen.TryGetValue(GaurdPosition, GaurdFacings) then
+              begin
+                if GaurdFacing in GaurdFacings then
+                begin
+                  TInterlocked.Increment(SolutionB);
+                  Exit;
+                end;
+              end;
+
+              Seen.AddOrSetValue(GaurdPosition, GaurdFacings + [GaurdFacing]);
+            end
+            else
+              GaurdPosition := next;
+          end;
+        finally
+          Seen.Free;
+        end;
+      end);
+    Result.Start;
+  end;
+
+var
   x,y: integer;
   chr: char;
+  GaurdPositionStart: int64;
+  GaurdPosition, Next: TPosition;
+  GaurdFacing: TAOCDirection;
+  Tasks: TList<ITask>;
+  SeenA: TAOCDictionary<TPosition,Boolean>;
 begin
   inherited;
 
-  FGrid := TAocGrid.Create(FInput);
-  BaseSeenCells := TDictionary<TPosition,TAOCDirections>.Create;
+  Tasks := TList<ITask>.Create;
 
-  for x := 0 to FGrid.MaxX do
-    for y := 0 to FGrid.MaxY do
+  SolutionA := 0;
+  SolutionB := 0;
+
+  Grid := TAocGrid.Create(FInput);
+  SeenA := TAOCDictionary<TPosition,Boolean>.Create;
+
+  for x := 0 to Grid.MaxX do
+    for y := 0 to Grid.MaxY do
     begin
-      if FGrid.TryGetValue(x, y, chr) and (chr = '^') then
+      if Grid.TryGetValue(x, y, chr) and (chr = '^') then
       begin
-        FGaurdStartPosition := TPosition.Create(x, y);
+        GaurdPosition := TPosition.Create(x, y);
         break;
       end;
     end;
 
-  FindPath(BaseSeenCells, -1, -1)
-end;
-
-procedure TAdventOfCodeDay6.AfterSolve;
-begin
-  inherited;
-
-  FGrid.Free;
-  BaseSeenCells.Free;
-end;
-
-procedure TAdventOfCodeDay6.FindPath(aSeenCells: TDictionary<TPosition, TAOCDirections>; BlockX, BlockY: integer);
-var
-  GaurdPosition, Next: TPosition;
-  GaurdFacing: TAOCDirection;
-  GaurdFacings: TAOCDirections;
-  chr: char;
-begin
   GaurdFacing := TAOCDirection.North;
-  GaurdPosition := FGaurdStartPosition.Clone;
-
-  aSeenCells.Add(GaurdPosition, []);
+  GaurdPositionStart := GaurdPosition.CacheKey;
+  
+  SeenA.Add(GaurdPosition, true);
   while True do
   begin
     next := GaurdPosition.Clone.ApplyDirection(GaurdFacing);
-    if not FGrid.TryGetValue(next.x, next.y, Chr) then
+    if not Grid.TryGetValue(next.x, next.y, Chr) then
       Break; // Out of bounds
 
-    if (chr = '#') or ((Next.X = BlockX) and (Next.Y = BlockY)) then
+    if (chr = '#') then
       GaurdFacing := TAOCDirection((ord(GaurdFacing) + 1) mod 4)
     else
     begin
+      if SeenA.AddOrSetValueEx(next, True) and (next.CacheKey <> GaurdPositionStart) then
+        Tasks.Add(_CreateTask(GaurdPosition, Next, GaurdFacing));
+
       GaurdPosition := next;
-
-      if aSeenCells.TryGetValue(next, GaurdFacings) then
-      begin
-        if GaurdFacing in GaurdFacings then // Cycle detected
-        begin
-          aSeenCells.Clear;
-          exit;
-        end;
-      end;
-
-      aSeenCells.AddOrSetValue(next, GaurdFacings + [GaurdFacing]);
     end;
   end;
+
+  SolutionA := SeenA.Count;
+  TTask.WaitForAll(tasks.ToArray);
+  Tasks.Free;
+  SeenA.Free;
+  Grid.Free;
 end;
 
 function TAdventOfCodeDay6.SolveA: Variant;
 begin
-  Result := BaseSeenCells.Count;
+  Result := SolutionA;
 end;
 
 function TAdventOfCodeDay6.SolveB: Variant;
-var
-  PossibleBlocks: Integer;
-
-  function CreateTask(aBlock: TPosition): ITask;
-  begin
-    Result := TTask.Create(procedure()
-      var
-        Seen: TDictionary<TPosition,TAOCDirections>;
-      begin
-        Seen := TDictionary<TPosition,TAOCDirections>.Create;
-        FindPath(Seen, aBlock.X, aBlock.Y);
-        if Seen.Count = 0 then
-          TInterlocked.Increment(PossibleBlocks);
-        Seen.Free;
-      end);
-  end;
-
-var
-  Block: TPosition;
-  Tasks: TList<ITask>;
-  Task: ITask;
 begin
-  PossibleBlocks := 0;
-  Tasks := TList<ITask>.Create;
-
-  for Block in BaseSeenCells.Keys do
-  begin
-    if Block.CacheKey = FGaurdStartPosition.CacheKey then
-      Continue;
-
-    Task := CreateTask(Block);
-    Task.Start;
-    Tasks.Add(Task);
-  end;
-
-  TTask.WaitForAll (tasks.ToArray);
-  Result := PossibleBlocks;
-  Tasks.Free;
+  Result := SolutionB;
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay7'}
