@@ -24,6 +24,7 @@ type TAOCDictionary<TKey,TValue> = class(TDictionary<TKey,TValue>)
 
   public
     procedure AddOrIgnoreValue(const Key: TKey; const Value: TValue);
+    function AddOrSetValueEx(aKey: TKey; aValue: TValue): Boolean;
     constructor Create(const aOnValueNoify: TCollectionNotifyEvent<TValue>); overload;
     procedure Free; overload;
 end;
@@ -202,6 +203,15 @@ procedure TAOCDictionary<TKey,TValue>.AddOrIgnoreValue(const Key: TKey; const Va
 begin
   if not Self.ContainsKey(Key) then
     Self.Add(Key, Value);
+end;
+
+function TAOCDictionary<TKey, TValue>.AddOrSetValueEx(aKey: TKey; aValue: TValue): Boolean;
+var
+  PrevCount: Integer;
+begin
+  PrevCount := Count;
+  AddOrSetValue(aKey, aValue);
+  Result := PrevCount <> Count;
 end;
 
 constructor TAOCDictionary<TKey,TValue>.Create(const aOnValueNoify: TCollectionNotifyEvent<TValue>);
