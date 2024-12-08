@@ -506,6 +506,7 @@ var
 var
   x,y: integer;
   chr: char;
+  GaurdPositionStart: int64;
   GaurdPosition, Next: TPosition;
   GaurdFacing: TAOCDirection;
   Tasks: TList<ITask>;
@@ -532,7 +533,8 @@ begin
     end;
 
   GaurdFacing := TAOCDirection.North;
-
+  GaurdPositionStart := GaurdPosition.CacheKey;
+  
   SeenA.Add(GaurdPosition, true);
   while True do
   begin
@@ -544,7 +546,7 @@ begin
       GaurdFacing := TAOCDirection((ord(GaurdFacing) + 1) mod 4)
     else
     begin
-      if SeenA.AddOrSetValueEx(next, True) then
+      if SeenA.AddOrSetValueEx(next, True) and (next.CacheKey <> GaurdPositionStart) then
         Tasks.Add(_CreateTask(GaurdPosition, Next, GaurdFacing));
 
       GaurdPosition := next;
@@ -727,7 +729,7 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6//, TAdventOfCodeDay7, TAdventOfCodeDay8
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8
   ]);
 
 end.
