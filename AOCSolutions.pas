@@ -574,24 +574,21 @@ end;
 {$REGION 'TAdventOfCodeDay7'}
 function TAdventOfCodeDay7.Solve(aUseConcatenation: boolean): int64;
 
-  function Calc(values: TStringDynArray; const aTarget, aCurrent, aIndex: int64): boolean;
+  function Calc(values: TStringDynArray; const aTarget, aIndex: int64): boolean;
   var
     strValue: string;
     value: int64;
   begin
-    if aIndex >= Length(Values) then
-      exit(aTarget = aCurrent);
-
-    if aCurrent > aTarget then
-      Exit(false);
+    if aIndex = 2 then
+      exit(aTarget = Values[2].ToInt64);
 
     strValue := values[aIndex];
     value := strValue.ToInt64;
 
     Result :=
-      Calc(Values, aTarget, aCurrent + value, aIndex + 1) or
-      Calc(Values, aTarget, aCurrent * value, aIndex + 1) or
-      (aUseConcatenation and Calc(Values, aTarget, Trunc(Power(10, Length(strValue))) * aCurrent + value, aIndex + 1));
+      Calc(Values, aTarget - value, aIndex - 1) or
+      ((aTarget mod value = 0) and Calc(Values, aTarget div value, aIndex - 1)) or
+      (aUseConcatenation and aTarget.ToString.EndsWith(strValue) and Calc(Values, aTarget div round(power(10, Length(strValue))), aIndex - 1));
   end;
 
 var
@@ -604,9 +601,8 @@ begin
   for s in FInput do
   begin
     split := SplitString(s, ': ');
-
     target := Split[0].ToInt64;
-    if Calc(split, target, split[2].ToInt64, 3) then
+    if Calc(split, target, Length(Split)-1) then
       Inc(result, target);
   end;
 end;
