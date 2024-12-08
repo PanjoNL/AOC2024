@@ -83,6 +83,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay8 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -612,6 +621,102 @@ begin
   Result := Solve(True);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay8'}
+procedure TAdventOfCodeDay8.BeforeSolve;
+var
+  Grid: TAocGrid;
+
+  procedure CheckAntinode_A(Seen: TDictionary<int64, boolean>; LocI, LocJ, Start, Delta: TPosition);
+  var
+    Pos: TPosition;
+  begin
+    Pos := TPosition.Create(Start.x + Delta.X, Start.Y + Delta.Y);
+    if (Pos.CacheKey <> LocI.CacheKey) and (Pos.CacheKey <> LocJ.CacheKey) and InRange(Pos.X, 0, Grid.MaxX) and InRange(pos.y, 0, Grid.MaxY) then
+      Seen.AddOrSetValue(Pos.CacheKey, true);
+  end;
+
+  procedure CheckAntinode_B(Seen: TDictionary<int64, boolean>; Start, Delta: TPosition);
+  var
+    Pos: TPosition;
+  begin
+    Pos := TPosition.Create(Start.x, Start.Y);
+
+    while InRange(Pos.X, 0, Grid.MaxX) and InRange(pos.y, 0, Grid.MaxY) do
+    begin
+      Seen.AddOrSetValue(Pos.CacheKey, True);
+      Pos.AddDelta(Delta.X, Delta.Y);
+    end;
+  end;
+
+var
+  Antennas: TDictionary<char, TList<TPosition>>;
+  lst: TList<TPosition>;
+  chr: char;
+  x,y,i,j: integer;
+  posI, posJ: TPosition;
+  SeenA, SeenB: TDictionary<int64, boolean>;
+begin
+  Grid := TAocGrid.Create(FInput);
+  Antennas := TDictionary<char, TList<TPosition>>.Create;
+  SeenA := TDictionary<int64, boolean>.Create;
+  SeenB := TDictionary<int64, boolean>.Create;
+
+  for x := 0 to Grid.MaxX do
+    for y := 0 to Grid.MaxY do
+    begin
+      chr := Grid.GetValue(x, y);
+      if chr = '.' then
+        continue;
+
+      if not Antennas.TryGetValue(chr, lst) then
+      begin
+        lst := TList<TPosition>.Create;
+        Antennas.Add(chr, lst);
+      end;
+
+      lst.Add(TPosition.Create(x,y));
+    end;
+
+  for lst in Antennas.Values do
+  begin
+    for i := 0 to lst.Count - 2 do
+      for j := i + 1 to lst.Count -1 do
+      begin
+        posI := lst[i];
+        posJ := lst[j];
+
+        x := posI.x - posJ.x;
+        y := posI.y - posJ.y;
+
+        CheckAntinode_A(SeenA, PosI, PosJ, PosI, TPosition.Create(x, y));
+        CheckAntinode_A(SeenA, PosI, PosJ, PosI, TPosition.Create(-x, -y));
+        CheckAntinode_A(SeenA, PosI, PosJ, PosJ, TPosition.Create(x, y));
+        CheckAntinode_A(SeenA, PosI, PosJ, PosJ, TPosition.Create(-x, -y));
+
+        CheckAntinode_B(SeenB, PosI, TPosition.Create(x, y));
+        CheckAntinode_B(SeenB, PosI, TPosition.Create(-x, -y));
+      end;
+  end;
+
+  SolutionA := SeenA.Count;
+  SolutionB := SeenB.Count;
+
+  SeenA.Free;
+  SeenB.Free;
+  Grid.Free;
+  Antennas.Free;
+end;
+
+function TAdventOfCodeDay8.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay8.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -629,7 +734,7 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8
   ]);
 
 end.

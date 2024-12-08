@@ -65,6 +65,7 @@ type
     procedure PrintToDebug;
     procedure SetData(aX, aY: integer; chr: char);
     function TryGetValue(aX, aY: integer; out aValue: char): boolean;
+    function GetValue(aX, aY: integer): char;
 
     property MaxX: integer read FMaxX;
     property MaxY: integer read FMaxY;
@@ -353,6 +354,11 @@ begin
   Result := False;
   if InRange(aX, 0, MaxX) and InRange(aY, 0, MaxY) then
     Result := FData.TryGetValue(TPosition.Create(aX, aY).CacheKey, aValue);
+end;
+
+function TAocGrid.GetValue(aX, aY: integer): char;
+begin
+  Result := FData[TPosition.Create(aX, aY).CacheKey];
 end;
 
 function GCD(Number1, Number2: int64): int64;
