@@ -88,6 +88,19 @@ type
     function SolveB: Variant; override;
   end;
 
+  TRawInfo = class
+    FileLength, FileId: int64;
+    constructor Create(aFileLength, aFileId: Int64);
+  end;
+
+  TAdventOfCodeDay9 = class(TAdventOfCode)
+  private
+    function ReadInput: TList<TRawInfo>;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -712,6 +725,191 @@ begin
   Result := SolutionB;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay9'}
+constructor TRawInfo.Create(aFileLength, aFileId: Int64);
+begin
+  FileLength := aFileLength;
+  FileId := aFileId;
+end;
+
+function TAdventOfCodeDay9.ReadInput: TList<TRawInfo>;
+var
+  isEmpty: Boolean;
+  FileId, FileLength: int64;
+  i: integer;
+begin
+  Result := TObjectList<TRawInfo>.Create(True);
+
+  FileId := 0;
+  isEmpty := False;
+  for i := 1 to length(FInput[0]) do
+  begin
+    FileLength := StrToInt(FInput[0][i]);
+    if isEmpty then
+      Result.Add(TRawInfo.Create(FileLength, -1))
+    else
+      Result.Add(TRawInfo.Create(FileLength, FileId));
+
+    if not isEmpty then
+      Inc(FileId);
+    isEmpty := not isEmpty;
+  end;
+end;
+
+function TAdventOfCodeDay9.SolveA: Variant;
+var
+  l, currentIdx, TargetIdx: int64;
+  i: integer;
+  RawDisk: TList<TRawInfo>;
+  tmpInfo: TRawInfo;
+begin
+  RawDisk := ReadInput;;
+  currentIdx := RawDisk.Count -1;
+  TargetIdx := 0;
+  while currentIdx > 0 do
+  begin
+    // If this is an empty spot continue;
+    tmpInfo := RawDisk[currentIdx];
+    if tmpInfo.FileId = -1 then
+    begin
+      Dec(currentIdx);
+      Continue;
+    end;
+
+    while TargetIdx < currentIdx do
+    begin
+      if RawDisk[TargetIdx].FileId <> -1 then
+      begin
+        Inc(TargetIdx); // This is not an empty spot
+        Continue;
+      end;
+
+      Break; // Spot found
+    end;
+
+    if TargetIdx >= currentIdx then // No more spots left
+      Break;
+
+    if RawDisk[TargetIdx].FileLength = tmpInfo.FileLength then
+    begin
+      RawDisk[TargetIdx].FileId := tmpInfo.FileId; // If sameLength then only update fileId
+      tmpInfo.FileId := -1;
+    end
+    else if RawDisk[TargetIdx].FileLength < tmpInfo.FileLength then // Doesnt fit
+    begin
+      RawDisk[TargetIdx].FileId := tmpInfo.FileId;
+      tmpInfo.FileLength := tmpInfo.FileLength - RawDisk[TargetIdx].FileLength;
+    end
+    else // It fits
+    begin
+      RawDisk[TargetIdx].FileLength := RawDisk[TargetIdx].FileLength - tmpInfo.FileLength;
+      RawDisk.Insert(TargetIdx, TRawInfo.Create(tmpInfo.FileLength, tmpInfo.FileId)); // Insert this record in the target
+      tmpInfo.FileId := -1;
+    end;
+  end;
+
+  TargetIdx := 0;
+  Result := 0;
+  for i := 0 to RawDisk.Count-1 do
+  begin
+    tmpInfo := RawDisk[i];
+    if tmpInfo.FileId = -1 then
+    begin
+      inc(TargetIdx, tmpInfo.FileLength);
+      continue;
+    end;
+
+    for l := 0 to tmpInfo.FileLength -1 do
+    begin
+      inc(Result, TargetIdx * tmpInfo.FileId);
+      inc(TargetIdx)
+    end;
+  end;
+
+  RawDisk.Free;
+end;
+
+function TAdventOfCodeDay9.SolveB: Variant;
+var
+  l, currentIdx, TargetIdx: int64;
+  i, MaxLengthToFind: integer;
+  RawDisk: TList<TRawInfo>;
+  tmpInfo: TRawInfo;
+begin
+  MaxLengthToFind := 9;
+  RawDisk := ReadInput;;
+  currentIdx := RawDisk.Count -1;
+  while currentIdx > 0 do
+  begin
+    // If this is an empty spot continue;
+    tmpInfo := RawDisk[currentIdx];
+    if tmpInfo.FileId = -1 then
+    begin
+      Dec(currentIdx);
+      Continue;
+    end;
+
+    // Determine the next empty spot (if we can't find one also keep track of that, to optimize the next rounds)
+    TargetIdx := 0;
+    if tmpInfo.FileLength > MaxLengthToFind then
+      TargetIdx := MaxInt64;
+
+    while TargetIdx < currentIdx do
+    begin
+      if RawDisk[TargetIdx].FileId <> -1 then
+      begin
+        Inc(TargetIdx); // This is not an empty spot
+        Continue;
+      end;
+
+      if RawDisk[TargetIdx].FileLength >= tmpInfo.FileLength then
+        Break; // Spot found
+      Inc(TargetIdx);
+    end;
+
+    // If TargetIdx is bigger then the currentidx we didnt find a spot, mark this filelength (and above)
+    if TargetIdx >= currentIdx then
+    begin
+      if tmpInfo.FileLength = 1 then // Not even space for a one length file -> stop
+        Break;
+
+      MaxLengthToFind := min(MaxLengthToFind, tmpInfo.FileLength);
+      Dec(currentIdx);
+
+      Continue;
+    end;
+
+    if RawDisk[TargetIdx].FileLength = tmpInfo.FileLength then
+      RawDisk[TargetIdx].FileId := tmpInfo.FileId // If sameLength then only update fileId
+    else
+    begin
+      RawDisk[TargetIdx].FileLength := RawDisk[TargetIdx].FileLength - tmpInfo.FileLength; // Correct the empty space of the target
+      RawDisk.Insert(TargetIdx, TRawInfo.Create(tmpInfo.FileLength, tmpInfo.FileId)); // Insert this record in the target
+    end;
+    tmpInfo.FileId := -1; // Mark the old space as empty
+  end;
+
+  TargetIdx := 0;
+  Result := 0;
+  for i := 0 to RawDisk.Count-1 do
+  begin
+    tmpInfo := RawDisk[i];
+    if tmpInfo.FileId = -1 then
+    begin
+      inc(TargetIdx, tmpInfo.FileLength);
+      continue;
+    end;
+
+    for l := 0 to tmpInfo.FileLength -1 do
+    begin
+      inc(Result, TargetIdx * tmpInfo.FileId);
+      inc(TargetIdx)
+    end;
+  end;
+
+  RawDisk.Free;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -729,7 +927,7 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9
   ]);
 
 end.
