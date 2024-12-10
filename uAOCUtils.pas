@@ -65,7 +65,8 @@ type
 
     procedure PrintToDebug;
     procedure SetData(aX, aY: integer; chr: char);
-    function TryGetValue(aX, aY: integer; out aValue: char): boolean;
+    function TryGetValue(aX, aY: integer; out aValue: char): boolean; overload;
+    function TryGetValue(aPosition: TPosition; out aValue: char): Boolean; overload;
     function GetValue(aX, aY: integer): char;
 
     property MaxX: integer read FMaxX;
@@ -319,7 +320,6 @@ begin
   Result.z := Math.Min(a.z, b.z);
 end;
 
-
 constructor TAocGrid.create(aStrings: TStrings);
 var
   tmpX, tmpY: Integer;
@@ -359,11 +359,16 @@ begin
   FData.AddOrSetValue(TPosition.Create(aX, aY).CacheKey, chr);
 end;
 
-function TAocGrid.TryGetValue(aX, aY: integer; out aValue: char): boolean;
+function TAocGrid.TryGetValue(aPosition: TPosition; out aValue: char): Boolean;
 begin
   Result := False;
-  if InRange(aX, 0, MaxX) and InRange(aY, 0, MaxY) then
-    Result := FData.TryGetValue(TPosition.Create(aX, aY).CacheKey, aValue);
+  if InRange(aPosition.X, 0, MaxX) and InRange(aPosition.Y, 0, MaxY) then
+    Result := FData.TryGetValue(aPosition.CacheKey, aValue);
+end;
+
+function TAocGrid.TryGetValue(aX, aY: integer; out aValue: char): boolean;
+begin
+  Result := TryGetValue(TPosition.Create(aX, aY), aValue);
 end;
 
 function TAocGrid.GetValue(aX, aY: integer): char;

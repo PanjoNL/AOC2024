@@ -101,6 +101,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay10 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -910,6 +919,95 @@ begin
   RawDisk.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay10'}
+type TTrailWork = record
+  Position: TPosition;
+  PathTaken: string;
+  Class function Create(aPosition: TPosition; aPathTaken: string): TTrailWork; Static;
+end;
+
+class function TTrailWork.Create(aPosition: TPosition; aPathTaken: string): TTrailWork;
+begin
+  Result.Position := aPosition;
+  Result.PathTaken := aPathTaken;
+end;
+
+procedure TAdventOfCodeDay10.BeforeSolve;
+var
+  Grid: TAocGrid;
+
+  procedure _Calc(aX, aY: integer);
+  var
+    SeenPaths: TDictionary<String,Boolean>;
+    SeenTrailHeads: TDictionary<TPosition,Boolean>;
+    Work: TQueue<TTrailWork>;
+    Current: TTrailWork;
+    Next: TPosition;
+    height, nextHeight: Char;
+    dir: TAOCDirection;
+  begin
+    SeenPaths := TDictionary<String,Boolean>.Create;
+    SeenTrailHeads := TDictionary<TPosition,Boolean>.Create;
+    Work := TQueue<TTrailWork>.Create;
+    Work.Enqueue(TTrailWork.Create(TPosition.Create(aX, aY), ''));
+
+    while Work.Count > 0 do
+    begin
+      Current := Work.Dequeue;
+      if not grid.TryGetValue(Current.Position, height) then
+        Continue;
+
+      if height = '9' then
+      begin
+        SeenTrailHeads.AddOrSetValue(Current.Position, True);
+        SeenPaths.AddOrSetValue(Current.PathTaken, True);
+        Continue;
+      end;
+
+      nextHeight := char(ord(height) + 1);
+
+      for dir in [North, East, South, West] do
+      begin
+        Next := Current.Position.Clone.ApplyDirection(dir);
+        if grid.TryGetValue(next, height) and (height = nextHeight) then
+          Work.Enqueue(TTrailWork.Create(Next, Current.PathTaken + '|' + next.x.ToString + '-' + next.y.ToString));
+      end;
+    end;
+
+    Inc(SolutionA, SeenTrailHeads.Count);
+    Inc(SolutionB, SeenPaths.Count);
+
+    SeenTrailHeads.Free;
+    SeenPaths.Free;
+    Work.Free;
+  end;
+
+var
+  x,y: integer;
+begin
+  SolutionA := 0;
+  SolutionB := 0;
+  Grid := TAocGrid.create(FInput);
+
+  for x := 0 to grid.MaxX do
+    for y := 0 to grid.MaxY do
+      if Grid.GetValue(x, y) = '0' then
+      _Calc(x, y);
+
+  Grid.Free;
+end;
+
+function TAdventOfCodeDay10.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay10.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+{$ENDREGION}
+
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -927,7 +1025,7 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10
   ]);
 
 end.
