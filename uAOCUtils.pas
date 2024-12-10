@@ -55,22 +55,37 @@ type
     class function Max(a, b: TPosition3): TPosition3; static;
   end;
 
-  TAocGrid = class
+  TAocGrid<TValue> = class
+  type
+    TCharToValueConverter = function(const aChar: Char): TValue of object;
+    TValueToCharConverter = function(const aValue: TValue): Char of object;
+
   private
-    FData: TDictionary<int64,char>;
+    FData: TDictionary<int64,TValue>;
     FMaxX, FMaxY: integer;
+    FValueConverter: TValueToCharConverter;
   public
-    constructor create(aStrings: TStrings); reintroduce;
+    constructor create(aStrings: TStrings; aCharToValueConverter: TCharToValueConverter; aValueToCharConverter: TValueToCharConverter); reintroduce;
     destructor Destroy; override;
 
     procedure PrintToDebug;
-    procedure SetData(aX, aY: integer; chr: char);
-    function TryGetValue(aX, aY: integer; out aValue: char): boolean; overload;
-    function TryGetValue(aPosition: TPosition; out aValue: char): Boolean; overload;
-    function GetValue(aX, aY: integer): char;
+    procedure SetData(aX, aY: integer; aValue: TValue);
+    function TryGetValue(aX, aY: integer; out aValue: TValue): boolean; overload;
+    function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload;
+    function GetValue(aX, aY: integer): TValue;
 
     property MaxX: integer read FMaxX;
     property MaxY: integer read FMaxY;
+  end;
+
+  TAocGridHelper = class
+  private
+    class function CharToChar(const aChar: Char): Char;
+    class function CharToInt(const aChar: Char): Integer;
+    class function IntToChar(const aInt: integer): char;
+  public
+    class function CreateCharGrid(aStrings: TStrings): TAocGrid<Char>;
+    class function CreateIntegerGrid(aStrings: TStrings): TAocGrid<Integer>;
   end;
 
 
@@ -320,26 +335,27 @@ begin
   Result.z := Math.Min(a.z, b.z);
 end;
 
-constructor TAocGrid.create(aStrings: TStrings);
+constructor TAocGrid<TValue>.create(aStrings: TStrings; aCharToValueConverter: TCharToValueConverter; aValueToCharConverter: TValueToCharConverter);
 var
   tmpX, tmpY: Integer;
 begin
-  FData := TDictionary<int64,Char>.Create;
+  FData := TDictionary<int64,TValue>.Create;
   FMaxX := Length(aStrings[0]) -1;
   FMaxY := aStrings.Count -1;
+  FValueConverter := aValueToCharConverter;
 
   for tmpY := 0 to MaxY do
     for tmpX := 0 to MaxX do
-      FData.Add(TPosition.Create(tmpX, tmpY).CacheKey, aStrings[tmpY][tmpX+1]);
+      FData.Add(TPosition.Create(tmpX, tmpY).CacheKey, aCharToValueConverter(aStrings[tmpY][tmpX+1]));
 end;
 
-destructor TAocGrid.Destroy;
+destructor TAocGrid<TValue>.Destroy;
 begin
   FData.Free;
   inherited;
 end;
 
-procedure TAocGrid.PrintToDebug;
+procedure TAocGrid<TValue>.PrintToDebug;
 var
   x, y: integer;
   s: string;
@@ -349,29 +365,29 @@ begin
   begin
     s := '';
     for x := 0 to MaxX do
-      s := s + FData[TPosition.Create(x, y).CacheKey];
+      s := s + FValueConverter(FData[TPosition.Create(x, y).CacheKey]);
     Writeln(s);
   end;
 end;
 
-procedure TAocGrid.SetData(aX, aY: integer; chr: char);
+procedure TAocGrid<TValue>.SetData(aX, aY: integer; aValue: TValue);
 begin
-  FData.AddOrSetValue(TPosition.Create(aX, aY).CacheKey, chr);
+  FData.AddOrSetValue(TPosition.Create(aX, aY).CacheKey, aValue);
 end;
 
-function TAocGrid.TryGetValue(aPosition: TPosition; out aValue: char): Boolean;
+function TAocGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
 begin
   Result := False;
   if InRange(aPosition.X, 0, MaxX) and InRange(aPosition.Y, 0, MaxY) then
     Result := FData.TryGetValue(aPosition.CacheKey, aValue);
 end;
 
-function TAocGrid.TryGetValue(aX, aY: integer; out aValue: char): boolean;
+function TAocGrid<TValue>.TryGetValue(aX, aY: integer; out aValue: TValue): boolean;
 begin
   Result := TryGetValue(TPosition.Create(aX, aY), aValue);
 end;
 
-function TAocGrid.GetValue(aX, aY: integer): char;
+function TAocGrid<TValue>.GetValue(aX, aY: integer): TValue;
 begin
   Result := FData[TPosition.Create(aX, aY).CacheKey];
 end;
@@ -468,5 +484,34 @@ begin
     end;
   end;
 end;
+
+{ TAocGridHelper }
+
+class function TAocGridHelper.CreateCharGrid(aStrings: TStrings): TAocGrid<Char>;
+begin
+  Result := TAocGrid<Char>.create(aStrings, CharToChar, CharToChar);
+end;
+
+class function TAocGridHelper.CreateIntegerGrid(aStrings: TStrings): TAocGrid<Integer>;
+begin
+  Result := TAocGrid<integer>.create(aStrings, CharToInt, IntToChar);
+end;
+
+class function TAocGridHelper.CharToChar(const aChar: Char): Char;
+begin
+  Result := aChar;
+end;
+
+class function TAocGridHelper.CharToInt(const aChar: Char): Integer;
+begin
+  Result := StrToInt(aChar);
+end;
+
+class function TAocGridHelper.IntToChar(const aInt: integer): char;
+begin
+  Assert(aInt < 10);
+  Result := aInt.ToString[1];
+end;
+
 
 end.

@@ -477,7 +477,7 @@ end;
 {$REGION 'TAdventOfCodeDay6'}
 procedure TAdventOfCodeDay6.BeforeSolve;
 var
-  Grid: TAocGrid;
+  Grid: TAocGrid<char>;
 
   function _CreateTask(aGaurdPosition, aBlock: TPosition; aGaurdFacing: TAOCDirection): ITask;
   begin
@@ -541,7 +541,7 @@ begin
   SolutionA := 0;
   SolutionB := 0;
 
-  Grid := TAocGrid.Create(FInput);
+  Grid := TAocGridHelper.CreateCharGrid(FInput);
   SeenA := TAOCDictionary<TPosition,Boolean>.Create;
 
   for x := 0 to Grid.MaxX do
@@ -641,7 +641,7 @@ end;
 {$REGION 'TAdventOfCodeDay8'}
 procedure TAdventOfCodeDay8.BeforeSolve;
 var
-  Grid: TAocGrid;
+  Grid: TAocGrid<Char>;
 
   procedure CheckAntinode_A(Seen: TDictionary<int64, boolean>; LocI, LocJ, Start, Delta: TPosition);
   var
@@ -673,7 +673,7 @@ var
   posI, posJ: TPosition;
   SeenA, SeenB: TDictionary<int64, boolean>;
 begin
-  Grid := TAocGrid.Create(FInput);
+  Grid := TAocGridHelper.CreateCharGrid(FInput);
   Antennas := TDictionary<char, TList<TPosition>>.Create;
   SeenA := TDictionary<int64, boolean>.Create;
   SeenB := TDictionary<int64, boolean>.Create;
@@ -920,65 +920,49 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay10'}
-type TTrailWork = record
-  Position: TPosition;
-  PathTaken: string;
-  Class function Create(aPosition: TPosition; aPathTaken: string): TTrailWork; Static;
-end;
-
-class function TTrailWork.Create(aPosition: TPosition; aPathTaken: string): TTrailWork;
-begin
-  Result.Position := aPosition;
-  Result.PathTaken := aPathTaken;
-end;
-
 procedure TAdventOfCodeDay10.BeforeSolve;
 var
-  Grid: TAocGrid;
+  Grid: TAocGrid<integer>;
 
   procedure _Calc(aX, aY: integer);
   var
-    SeenPaths: TDictionary<String,Boolean>;
-    SeenTrailHeads: TDictionary<TPosition,Boolean>;
-    Work: TQueue<TTrailWork>;
-    Current: TTrailWork;
-    Next: TPosition;
-    height, nextHeight: Char;
+    SeenTrailHeads: TDictionary<TPosition,integer>;
+    Work: TQueue<TPosition>;
+    Current, Next: TPosition;
+    height, nextHeight, pathCount: integer;
     dir: TAOCDirection;
   begin
-    SeenPaths := TDictionary<String,Boolean>.Create;
-    SeenTrailHeads := TDictionary<TPosition,Boolean>.Create;
-    Work := TQueue<TTrailWork>.Create;
-    Work.Enqueue(TTrailWork.Create(TPosition.Create(aX, aY), ''));
+    SeenTrailHeads := TDictionary<TPosition,integer>.Create;
+    Work := TQueue<TPosition>.Create;
+    Work.Enqueue(TPosition.Create(aX, aY));
 
     while Work.Count > 0 do
     begin
       Current := Work.Dequeue;
-      if not grid.TryGetValue(Current.Position, height) then
+      if not grid.TryGetValue(Current, height) then
         Continue;
 
-      if height = '9' then
+      if height = 9 then
       begin
-        SeenTrailHeads.AddOrSetValue(Current.Position, True);
-        SeenPaths.AddOrSetValue(Current.PathTaken, True);
+        SeenTrailHeads.TryGetValue(Current, pathCount);
+        SeenTrailHeads.AddOrSetValue(Current, pathCount + 1);
         Continue;
       end;
 
-      nextHeight := char(ord(height) + 1);
-
+      nextHeight := height + 1;
       for dir in [North, East, South, West] do
       begin
-        Next := Current.Position.Clone.ApplyDirection(dir);
+        Next := Current.Clone.ApplyDirection(dir);
         if grid.TryGetValue(next, height) and (height = nextHeight) then
-          Work.Enqueue(TTrailWork.Create(Next, Current.PathTaken + '|' + next.x.ToString + '-' + next.y.ToString));
+          Work.Enqueue(Next);
       end;
     end;
 
     Inc(SolutionA, SeenTrailHeads.Count);
-    Inc(SolutionB, SeenPaths.Count);
+    for pathCount in SeenTrailHeads.Values do
+      Inc(SolutionB, pathCount);
 
     SeenTrailHeads.Free;
-    SeenPaths.Free;
     Work.Free;
   end;
 
@@ -987,11 +971,11 @@ var
 begin
   SolutionA := 0;
   SolutionB := 0;
-  Grid := TAocGrid.create(FInput);
+  Grid := TAocGridHelper.CreateIntegerGrid(FInput);
 
   for x := 0 to grid.MaxX do
     for y := 0 to grid.MaxY do
-      if Grid.GetValue(x, y) = '0' then
+      if Grid.GetValue(x, y) = 0 then
       _Calc(x, y);
 
   Grid.Free;
