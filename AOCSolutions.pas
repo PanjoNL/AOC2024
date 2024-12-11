@@ -111,6 +111,14 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay11 = class(TAdventOfCode)
+  private
+    function ObservePebbles(const aRounds: integer): int64;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -949,6 +957,63 @@ begin
   Result := SolutionB;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay11'}
+function TAdventOfCodeDay11.ObservePebbles(const aRounds: integer): int64;
+var
+  Cache: Array of TDictionary<int64, int64>;
+
+  function Calc(aRound, aStone: int64): int64;
+  var
+    l: int64;
+  begin
+    if aRound = aRounds then
+      exit(1);
+
+    if aStone = 0 then
+      Result := Calc(aRound + 1, 1)
+    else if (aStone.ToString.Length and 1) <> 1 then
+    begin
+      if Cache[aRound].TryGetValue(aStone, Result) then
+        Exit;
+
+      l := aStone.ToString.Length shr 1;
+      Result :=
+        Calc(aRound+1, aStone.ToString.Substring(0, l).ToInt64) +
+        Calc(aRound+1, aStone.ToString.Substring(l,l).ToInt64);
+
+      Cache[aRound].Add(aStone, Result);
+    end
+    else
+      Result := Calc(aRound+1, aStone * 2024);
+  end;
+
+var
+  i: Integer;
+  split: TStringDynArray;
+begin
+  Result := 0;
+  SetLength(Cache, aRounds);
+  for i := 0 to aRounds-1 do
+    Cache[i] := TDictionary<int64, int64>.Create;
+
+  split := SplitString(FInput[0], ' ');
+  for i := 0 to Length(split) -1 do
+    Result := Result + Calc(0, Split[i].ToInt64);
+
+  for i := 0 to aRounds-1 do
+    Cache[i].Free
+end;
+
+function TAdventOfCodeDay11.SolveA: Variant;
+begin
+  Result := ObservePebbles(25);
+end;
+
+function TAdventOfCodeDay11.SolveB: Variant;
+begin
+  Result := ObservePebbles(75);
+end;
+{$ENDREGION}
 
 
 {$REGION 'Placeholder'}
@@ -967,7 +1032,8 @@ initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
-  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10
+  TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
+  TAdventOfCodeDay11
   ]);
 
 end.
