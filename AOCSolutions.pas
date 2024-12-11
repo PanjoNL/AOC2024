@@ -959,49 +959,73 @@ end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay11'}
 function TAdventOfCodeDay11.ObservePebbles(const aRounds: integer): int64;
-var
-  Cache: Array of TDictionary<int64, int64>;
 
-  function Calc(aRound, aStone: int64): int64;
-  var
-    l: int64;
+  function _FindBaseIdx(aValue: int64): integer;
   begin
-    if aRound = aRounds then
-      exit(1);
+    Result := 0;
 
-    if aStone = 0 then
-      Result := Calc(aRound + 1, 1)
-    else if (aStone.ToString.Length and 1) <> 1 then
+    while True do
     begin
-      if Cache[aRound].TryGetValue(aStone, Result) then
+      if aValue < Base10Table[Result+1] then
         Exit;
 
-      l := aStone.ToString.Length shr 1;
-      Result :=
-        Calc(aRound+1, aStone.ToString.Substring(0, l).ToInt64) +
-        Calc(aRound+1, aStone.ToString.Substring(l,l).ToInt64);
+      inc(Result);
+    end;
+  end;
 
-      Cache[aRound].Add(aStone, Result);
-    end
-    else
-      Result := Calc(aRound+1, aStone * 2024);
+  procedure _UpdateStoneList(aStoneList: TDictionary<int64, int64>; aStone, aCount: Int64);
+  var
+    CurrentCount: Int64;
+  begin
+    aStoneList.TryGetValue(aStone, CurrentCount);
+    aStoneList.AddOrSetValue(aStone, CurrentCount + aCount);
   end;
 
 var
   i: Integer;
+  l, stone, count, Base: int64;
   split: TStringDynArray;
+  Stones, NewStones: TDictionary<int64, int64>;
+  Pair: TPair<int64, int64>;
 begin
-  Result := 0;
-  SetLength(Cache, aRounds);
-  for i := 0 to aRounds-1 do
-    Cache[i] := TDictionary<int64, int64>.Create;
-
   split := SplitString(FInput[0], ' ');
-  for i := 0 to Length(split) -1 do
-    Result := Result + Calc(0, Split[i].ToInt64);
+  Stones := TDictionary<int64, int64>.Create;
 
-  for i := 0 to aRounds-1 do
-    Cache[i].Free
+  for i := 0 to Length(split) -1 do
+    _UpdateStoneList(Stones, split[i].ToInt64(), 1);
+
+  NewStones := TDictionary<int64, int64>.Create(Stones.Count * 2);
+  for i := 1 to aRounds do
+  begin
+    for Pair in Stones do
+    begin
+      if Pair.Key = 0 then
+      begin
+        _UpdateStoneList(NewStones, 1, Pair.Value);
+        Continue
+      end;
+
+      l := _FindBaseIdx(Pair.Key);
+      if (l and 1) = 1 then
+      begin
+        Base := Base10Table[1+ (l shr 1)];
+        _UpdateStoneList(NewStones, Pair.Key div Base, Pair.Value);
+        _UpdateStoneList(NewStones, Pair.Key mod Base, Pair.Value);
+      end
+      else
+        _UpdateStoneList(NewStones, Pair.Key * 2024, Pair.Value);
+    end;
+
+    stones.Free;
+    Stones := NewStones;
+    NewStones := TDictionary<Int64, int64>.Create(Stones.Count * 2);
+  end;
+
+  Result := 0;
+  for Pair in Stones do
+    Inc(Result, Pair.Value);
+  Stones.Free;
+  NewStones.Free;
 end;
 
 function TAdventOfCodeDay11.SolveA: Variant;
