@@ -119,6 +119,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay12 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: integer;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -983,7 +992,7 @@ function TAdventOfCodeDay11.ObservePebbles(const aRounds: integer): int64;
 
 var
   i: Integer;
-  l, stone, count, Base: int64;
+  l, Base: int64;
   split: TStringDynArray;
   Stones, NewStones: TDictionary<int64, int64>;
   Pair: TPair<int64, int64>;
@@ -1038,7 +1047,90 @@ begin
   Result := ObservePebbles(75);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay12'}
+procedure TAdventOfCodeDay12.BeforeSolve;
+var
+  x,y,i, CurrentArea, FenceCount, SideCount: Integer;
+  Grid: TAocGrid<Char>;
+  Chr, Chr1, Chr2, chr3, CurrentChar: char;
+  Seen: TDictionary<TPosition,Boolean>;
+  Work: TQueue<TPosition>;
+  Pos: TPosition;
+  Dir: TAOCDirection;
+begin
+  SolutionA := 0;
+  SolutionB := 0;
 
+  Grid := TAocGridHelper.CreateCharGrid(FInput);
+  Seen := TDictionary<TPosition,Boolean>.Create;
+  Work := TQueue<TPosition>.Create;
+
+  for x := 0 to Grid.MaxX do
+    for y := 0 to Grid.MaxY do
+    begin
+      Pos := TPosition.Create(x, y);
+      if Seen.ContainsKey(Pos) then
+        Continue;
+
+      CurrentChar := Grid.GetValue(pos.x, Pos.y);
+      CurrentArea := 0;
+      FenceCount := 0;
+      SideCount := 0;
+
+      Work.Enqueue(Pos);
+
+      while Work.Count > 0 do
+      begin
+        Pos := Work.Dequeue;
+
+        if not Grid.TryGetValue(Pos, chr) or (chr <> CurrentChar) then
+        begin
+          Inc(FenceCount);
+          Continue;
+        end;
+
+        if Seen.ContainsKey(Pos) then
+          Continue;
+
+        Seen.Add(Pos, True);
+
+        Inc(CurrentArea);
+        for dir in [North, East, South, West] do
+        begin
+          Work.Enqueue(Pos.Clone.ApplyDirection(Dir));
+
+          Grid.TryGetValue(Pos.Clone.ApplyDirection(dir), Chr1);
+          Grid.TryGetValue(Pos.Clone.ApplyDirection(RotateDirection(dir, 1)), Chr2);
+          Grid.TryGetValue(Pos.Clone.ApplyDirection(dir).ApplyDirection(RotateDirection(dir, 1)), Chr3);
+
+          if (Chr1 <> CurrentChar) and (Chr2 <> CurrentChar) then
+            Inc(SideCount);
+
+          if (Chr1 = CurrentChar) and (Chr2 = CurrentChar) and (Chr3 <> CurrentChar) then
+            Inc(SideCount);
+        end;
+      end;
+
+      inc(SolutionA, CurrentArea * FenceCount);
+      Inc(SolutionB, CurrentArea * SideCount);
+    end;
+
+  Grid.Free;
+  Seen.Free;
+  Work.Free;
+end;
+
+function TAdventOfCodeDay12.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay12.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -1057,7 +1149,7 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11
+  TAdventOfCodeDay11,TAdventOfCodeDay12
   ]);
 
 end.

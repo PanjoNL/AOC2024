@@ -399,6 +399,7 @@ end;
 function TAocGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
 begin
   Result := False;
+  aValue := Default(TValue);
   if InRange(aPosition.X, 0, MaxX) and InRange(aPosition.Y, 0, MaxY) then
     Result := FData.TryGetValue(aPosition.CacheKey, aValue);
 end;
