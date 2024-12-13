@@ -520,13 +520,13 @@ var
   begin
     Result := TTask.Create(procedure()
       var
-        Seen: TDictionary<TPosition, TAOCDirections>;
+        Seen: TAocStaticGrid<integer>;
         GaurdPosition, Next: TPosition;
         GaurdFacing: TAOCDirection;
-        GaurdFacings: TAOCDirections;
+        GaurdFacings, intGaurdFacing: integer;
         chr: Char;
       begin
-        Seen := TDictionary<TPosition, TAOCDirections>.Create;
+        Seen := TAocStaticGrid<integer>.Create(Grid.MaxX, Grid.MaxY);
         GaurdPosition := aGaurdPosition;
         GaurdFacing := aGaurdFacing;
 
@@ -540,17 +540,18 @@ var
             if (chr = '#') or (next.CacheKey = aBlock.CacheKey) then
             begin
               GaurdFacing := RotateDirection(GaurdFacing, 1);
+              intGaurdFacing := 1 shl ord(GaurdFacing);
 
               if Seen.TryGetValue(GaurdPosition, GaurdFacings) then
               begin
-                if GaurdFacing in GaurdFacings then
+                if (GaurdFacings and intGaurdFacing) = intGaurdFacing then
                 begin
                   TInterlocked.Increment(SolutionB);
                   Exit;
                 end;
               end;
 
-              Seen.AddOrSetValue(GaurdPosition, GaurdFacings + [GaurdFacing]);
+              Seen.SetData(GaurdPosition, GaurdFacings or intGaurdFacing);
             end
             else
               GaurdPosition := next;
@@ -565,26 +566,25 @@ var
 var
   x,y: integer;
   chr: char;
-  GaurdPositionStart: int64;
   GaurdPosition, Next: TPosition;
   GaurdFacing: TAOCDirection;
   Tasks: TList<ITask>;
-  SeenA: TAOCDictionary<TPosition,Boolean>;
+  SeenA: TAocStaticGrid<Boolean>;
 begin
   inherited;
 
   Tasks := TList<ITask>.Create;
 
-  SolutionA := 0;
+  SolutionA := 1;
   SolutionB := 0;
 
   Grid := TAocGridHelper.CreateCharGrid(FInput);
-  SeenA := TAOCDictionary<TPosition,Boolean>.Create;
+  SeenA := TAocStaticGrid<Boolean>.Create(Grid.MaxX, Grid.MaxY);
 
   for x := 0 to Grid.MaxX do
     for y := 0 to Grid.MaxY do
     begin
-      if Grid.TryGetValue(x, y, chr) and (chr = '^') then
+      if Grid.GetValue(x, y)  = '^' then
       begin
         GaurdPosition := TPosition.Create(x, y);
         break;
@@ -592,9 +592,7 @@ begin
     end;
 
   GaurdFacing := TAOCDirection.North;
-  GaurdPositionStart := GaurdPosition.CacheKey;
-  
-  SeenA.Add(GaurdPosition, true);
+  SeenA.SetData(GaurdPosition, true);
   while True do
   begin
     next := GaurdPosition.Clone.ApplyDirection(GaurdFacing);
@@ -605,14 +603,17 @@ begin
       GaurdFacing := RotateDirection(GaurdFacing, 1)
     else
     begin
-      if SeenA.AddOrSetValueEx(next, True) and (next.CacheKey <> GaurdPositionStart) then
+      if not SeenA.GetValue(Next) then
+      begin
+        SeenA.SetData(Next, True);
+        Inc(SolutionA);
         Tasks.Add(_CreateTask(GaurdPosition, Next, GaurdFacing));
+      end;
 
       GaurdPosition := next;
     end;
   end;
 
-  SolutionA := SeenA.Count;
   TTask.WaitForAll(tasks.ToArray);
   Tasks.Free;
   SeenA.Free;
@@ -1072,7 +1073,7 @@ var
   x, y, CurrentArea, FenceCount, SideCount: Integer;
   Grid: TAocGrid<Char>;
   Chr1, Chr2, chr3, CurrentChar: char;
-  Seen: TDictionary<TPosition,Boolean>;
+  Seen: TAocStaticGrid<Boolean>;
   Work: TStack<TPosition>;
   Pos: TPosition;
   Dir: TAOCDirection;
@@ -1081,14 +1082,14 @@ begin
   SolutionB := 0;
 
   Grid := TAocGridHelper.CreateCharGrid(FInput);
-  Seen := TDictionary<TPosition,Boolean>.Create;
+  Seen := TAocStaticGrid<Boolean>.Create(Grid.MaxX, Grid.MaxY);
   Work := TStack<TPosition>.Create;
 
   for x := 0 to Grid.MaxX do
     for y := 0 to Grid.MaxY do
     begin
       Pos := TPosition.Create(x, y);
-      if Seen.ContainsKey(Pos) then
+      if Seen.GetValue(Pos) then
         Continue;
 
       CurrentChar := Grid.GetValue(pos.x, Pos.y);
@@ -1102,10 +1103,10 @@ begin
       begin
         Pos := Work.Pop;
 
-        if Seen.ContainsKey(Pos) then
+        if Seen.GetValue(Pos) then
           Continue;
 
-        Seen.Add(Pos, True);
+        Seen.SetData(Pos, True);
 
         Inc(CurrentArea);
         for dir in [North, East, South, West] do
