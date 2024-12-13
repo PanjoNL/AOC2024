@@ -128,6 +128,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay13 = class(TAdventOfCode)
+  private
+    function PlayOnClawContraption(AddToTarget: int64): int64;
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -1050,7 +1059,7 @@ end;
 {$REGION 'TAdventOfCodeDay12'}
 procedure TAdventOfCodeDay12.BeforeSolve;
 var
-  x,y,i, CurrentArea, FenceCount, SideCount: Integer;
+  x, y, CurrentArea, FenceCount, SideCount: Integer;
   Grid: TAocGrid<Char>;
   Chr, Chr1, Chr2, chr3, CurrentChar: char;
   Seen: TDictionary<TPosition,Boolean>;
@@ -1131,6 +1140,66 @@ begin
 end;
 
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay13'}
+function TAdventOfCodeDay13.PlayOnClawContraption(AddToTarget: int64): int64;
+
+  function Determinant(a, b, c, d: Double): Double;
+  begin
+    Result := (a * d) - (b * c);
+  end;
+
+var
+  i: int64;
+  split: TStringDynArray;
+  aX, aY, bX, bY, TargetX, TargetY, CountA, CountB: int64;
+  det, detA, DetB: Double;
+begin
+  i := 0;
+  Result := 0;
+
+  while i <= FInput.Count do
+  begin
+    split := SplitString(FInput[i], ' +,');
+    aX := Split[3].ToInt64;
+    aY := Split[6].ToInt64;
+
+    split := SplitString(FInput[i+1], ' +,');
+    bX := Split[3].ToInt64;
+    bY := Split[6].ToInt64;
+
+    split := SplitString(FInput[i+2], ' =,');
+    TargetX := AddToTarget + Split[2].ToInt64;
+    TargetY := AddToTarget + Split[5].ToInt64;
+
+    Inc(i, 4);
+
+    // https://www.cliffsnotes.com/study-guides/algebra/algebra-ii/linear-sentences-in-two-variables/linear-equations-solutions-using-determinants-with-two-variables
+    det := Determinant(aX, bX, Ay, bY);
+    if det <> 0 then
+    begin
+      detA := Determinant(TargetX, bX, TargetY, bY);
+      DetB := Determinant(aX, TargetX, Ay, TargetY);
+
+      CountA := Trunc(DetA / det);
+      CountB := Trunc(DetB / det);
+
+      if (CountA * ax + CountB * bx = TargetX) and (CountA * aY + CountB * bY = TargetY) then
+        inc(Result, CountA * 3 + CountB);
+    end;
+  end;
+end;
+
+function TAdventOfCodeDay13.SolveA: Variant;
+begin
+  Result := PlayOnClawContraption(0);
+end;
+
+function TAdventOfCodeDay13.SolveB: Variant;
+begin
+  Result := PlayOnClawContraption(10000000000000);
+end;
+{$ENDREGION}
+
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -1149,7 +1218,7 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13
   ]);
 
 end.
