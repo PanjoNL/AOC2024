@@ -323,43 +323,53 @@ end;
 {$REGION 'TAdventOfCodeDay4'}
 procedure TAdventOfCodeDay4.BeforeSolve;
 const
-  DeltaX: array[0..7] of integer = (1,1,1,0,0,-1,-1,-1);
-  DeltaY: array[0..7] of Integer = (-1,0,1,-1,1,-1,0,1);
-  DeltaX_2: array[0..3] of integer = (1,1,-1,-1);
-  DeltaY_2: array[0..3] of Integer = (1,-1,-1,1);
+  OffSetsA: array[0..7] of TAOCDirections = ([North],[East],[South],[West],[North,East],[North,West],[South,East],[South,West]);
+  OffSetsB: array[0..3] of TAOCDirections = ([North,East],[South,East],[South,West],[North,West]);
 var
-  x,y,i,MaxY,MaxX: Integer;
+  Grid: TAocGrid<Char>;
 
-  function _checkPos(const aX, aY: integer; Const aChar: string): Boolean;
+  function _checkPos(aBasePos: TPosition; aDirs: TAOCDirections; aDelta: integer; Const aExpectedChar: string): Boolean;
+  var
+    Pos: TPosition;
+    Dir: TAOCDirection;
+    chr: Char;
   begin
-    Result := InRange(aX, 1, MaxX) and InRange(aY, 0, MaxY) and SameText(FInput[aY][aX], aChar);
+    Pos := aBasePos.Clone();
+    for Dir in aDirs do
+      Pos := Pos.ApplyDirection(Dir, aDelta);
+    Result := Grid.TryGetValue(Pos, chr) and (chr = aExpectedChar);
   end;
 
+var
+  BasePos: TPosition;
+  Dirs: TAOCDirections;
+  x,y,i: Integer;
 begin
-  MaxY := FInput.Count-1;
-  MaxX := Length(FInput[0]);
+  Grid := TAocGridHelper.CreateCharGrid(FInput);
 
   SolutionA := 0;
   SolutionB := 0;
 
-  for x := 1 to MaxX do
-    for y := 0 to MaxY do
+  for x := 0 to Grid.MaxX do
+    for y := 0 to Grid.MaxY do
     begin
+      BasePos := TPosition.Create(x ,y);
 
-      if _checkPos(x, y, 'X') then
-        for i := 0 to 7 do
-          if _checkPos(x + DeltaX[i] * 1, Y + DeltaY[i] * 1, 'M') and
-             _checkPos(x + DeltaX[i] * 2, Y + DeltaY[i] * 2, 'A') and
-             _checkPos(x + DeltaX[i] * 3, Y + DeltaY[i] * 3, 'S') then
+      if Grid.GetValue(BasePos) = 'X' then
+        for Dirs in OffSetsA do
+          if _checkPos(BasePos, Dirs, 1, 'M') and _checkPos(BasePos, Dirs, 2, 'A') and _checkPos(BasePos, Dirs, 3, 'S') then
             inc(SolutionA);
 
-      if _checkPos(x, y, 'A') then
+      if Grid.GetValue(BasePos) = 'A' then
         for i := 0 to 3 do
-          if _checkPos(x + DeltaX_2[(i+0) mod 4], Y + DeltaY_2[(i+0) mod 4], 'M') and
-             _checkPos(x + DeltaX_2[(i+1) mod 4], Y + DeltaY_2[(i+1) mod 4], 'M') and
-             _checkPos(x + DeltaX_2[(i+2) mod 4], Y + DeltaY_2[(i+2) mod 4], 'S') and
-             _checkPos(x + DeltaX_2[(i+3) mod 4], Y + DeltaY_2[(i+3) mod 4], 'S') then
+          if _checkPos(BasePos, OffSetsB[(i+0) mod 4], 1, 'M') and
+             _checkPos(BasePos, OffSetsB[(i+1) mod 4], 1, 'M') and
+             _checkPos(BasePos, OffSetsB[(i+2) mod 4], 1, 'S') and
+             _checkPos(BasePos, OffSetsB[(i+3) mod 4], 1, 'S') then
+          begin
             inc(SolutionB);
+            Break;
+          end;
     end;
 end;
 
@@ -911,18 +921,18 @@ var
   procedure _Calc(aX, aY: integer);
   var
     SeenTrailHeads: TDictionary<TPosition,integer>;
-    Work: TQueue<TPosition>;
+    Work: TStack<TPosition>;
     Current, Next: TPosition;
     height, nextHeight, pathCount: integer;
     dir: TAOCDirection;
   begin
     SeenTrailHeads := TDictionary<TPosition,integer>.Create;
-    Work := TQueue<TPosition>.Create;
-    Work.Enqueue(TPosition.Create(aX, aY));
+    Work := TStack<TPosition>.Create;
+    Work.Push(TPosition.Create(aX, aY));
 
     while Work.Count > 0 do
     begin
-      Current := Work.Dequeue;
+      Current := Work.Pop;
       if not grid.TryGetValue(Current, height) then
         Continue;
 
@@ -938,7 +948,7 @@ var
       begin
         Next := Current.Clone.ApplyDirection(dir);
         if grid.TryGetValue(next, height) and (height = nextHeight) then
-          Work.Enqueue(Next);
+          Work.Push(Next);
       end;
     end;
 
@@ -1061,9 +1071,9 @@ procedure TAdventOfCodeDay12.BeforeSolve;
 var
   x, y, CurrentArea, FenceCount, SideCount: Integer;
   Grid: TAocGrid<Char>;
-  Chr, Chr1, Chr2, chr3, CurrentChar: char;
+  Chr1, Chr2, chr3, CurrentChar: char;
   Seen: TDictionary<TPosition,Boolean>;
-  Work: TQueue<TPosition>;
+  Work: TStack<TPosition>;
   Pos: TPosition;
   Dir: TAOCDirection;
 begin
@@ -1072,7 +1082,7 @@ begin
 
   Grid := TAocGridHelper.CreateCharGrid(FInput);
   Seen := TDictionary<TPosition,Boolean>.Create;
-  Work := TQueue<TPosition>.Create;
+  Work := TStack<TPosition>.Create;
 
   for x := 0 to Grid.MaxX do
     for y := 0 to Grid.MaxY do
@@ -1086,17 +1096,11 @@ begin
       FenceCount := 0;
       SideCount := 0;
 
-      Work.Enqueue(Pos);
+      Work.Push(Pos);
 
       while Work.Count > 0 do
       begin
-        Pos := Work.Dequeue;
-
-        if not Grid.TryGetValue(Pos, chr) or (chr <> CurrentChar) then
-        begin
-          Inc(FenceCount);
-          Continue;
-        end;
+        Pos := Work.Pop;
 
         if Seen.ContainsKey(Pos) then
           Continue;
@@ -1106,17 +1110,22 @@ begin
         Inc(CurrentArea);
         for dir in [North, East, South, West] do
         begin
-          Work.Enqueue(Pos.Clone.ApplyDirection(Dir));
-
           Grid.TryGetValue(Pos.Clone.ApplyDirection(dir), Chr1);
           Grid.TryGetValue(Pos.Clone.ApplyDirection(RotateDirection(dir, 1)), Chr2);
-          Grid.TryGetValue(Pos.Clone.ApplyDirection(dir).ApplyDirection(RotateDirection(dir, 1)), Chr3);
 
-          if (Chr1 <> CurrentChar) and (Chr2 <> CurrentChar) then
-            Inc(SideCount);
+          if (chr1 <> CurrentChar) then
+          begin
+            Inc(FenceCount);
+            if Chr2 <> CurrentChar then
+              Inc(SideCount);
+          end
+          else
+          begin
+            Work.Push(Pos.Clone.ApplyDirection(Dir));
+            if (chr2 = CurrentChar) and Grid.TryGetValue(Pos.Clone.ApplyDirection(dir).ApplyDirection(RotateDirection(dir, 1)), Chr3) and (Chr3 <> CurrentChar) then
+              Inc(SideCount);
+          end;
 
-          if (Chr1 = CurrentChar) and (Chr2 = CurrentChar) and (Chr3 <> CurrentChar) then
-            Inc(SideCount);
         end;
       end;
 
@@ -1138,7 +1147,6 @@ function TAdventOfCodeDay12.SolveB: Variant;
 begin
   Result := SolutionB;
 end;
-
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay13'}
 function TAdventOfCodeDay13.PlayOnClawContraption(AddToTarget: int64): int64;
