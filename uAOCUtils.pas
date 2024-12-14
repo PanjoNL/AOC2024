@@ -65,7 +65,7 @@ type
     procedure CreateDataHolder; virtual; abstract;
   public
     constructor Create(aStrings: TStrings; aCharToValueConverter: TCharToValueConverter<TValue>; aValueToCharConverter: TValueToCharConverter<TValue>); reintroduce; overload;
-    constructor Create(aMaxX, aMaxY: integer) overload;
+    constructor Create(aMaxX, aMaxY: integer; aValueToCharConverter: TValueToCharConverter<TValue> = nil) overload;
     destructor Destroy; override;
 
     procedure PrintToDebug;
@@ -388,16 +388,16 @@ var
 begin
   Create(Length(aStrings[0]) -1, aStrings.Count -1);
 
-  FValueConverter := aValueToCharConverter;
   for tmpY := 0 to MaxY do
     for tmpX := 0 to MaxX do
       SetData(TPosition.Create(tmpX, tmpY), aCharToValueConverter(aStrings[tmpY][tmpX+1]));
 end;
 
-constructor TAocGrid<TValue>.Create(aMaxX, aMaxY: integer);
+constructor TAocGrid<TValue>.Create(aMaxX, aMaxY: integer; aValueToCharConverter: TValueToCharConverter<TValue> = nil);
 begin
   FMaxX := aMaxX;
   FMaxY := aMaxY;
+  FValueConverter := aValueToCharConverter;
 
   CreateDataHolder;
 end;
@@ -422,19 +422,6 @@ begin
   end;
 end;
 
-//procedure TAocGrid<TValue>.SetData(aX, aY: integer; aValue: TValue);
-//begin
-//  FData.AddOrSetValue(TPosition.Create(aX, aY).CacheKey, aValue);
-//end;
-//
-//function TAocGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
-//begin
-//  Result := False;
-//  aValue := Default(TValue);
-//  if InRange(aPosition.X, 0, MaxX) and InRange(aPosition.Y, 0, MaxY) then
-//    Result := FData.TryGetValue(aPosition.CacheKey, aValue);
-//end;
-
 function TAocGrid<TValue>.TryGetValue(aX, aY: integer; out aValue: TValue): boolean;
 begin
   Result := TryGetValue(TPosition.Create(aX, aY), aValue);
@@ -444,11 +431,6 @@ function TAocGrid<TValue>.GetValue(aX, aY: integer): TValue;
 begin
   Result := GetValue(TPosition.Create(aX, aY));
 end;
-
-//function TAocGrid<TValue>.GetValue(aPosition: TPosition): TValue;
-//begin
-//  Result := FData[aPosition.CacheKey];
-//end;
 
 function GCD(Number1, Number2: int64): int64;
 var Temp: int64;

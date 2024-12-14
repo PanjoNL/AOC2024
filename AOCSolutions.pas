@@ -136,6 +136,20 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay14 = class(TAdventOfCode)
+  private
+    const
+      RoomWidth: integer = 101;
+      RoomHeigth: integer = 103;
+    var
+      FStartPositions, FVelocities: Array of TPosition;
+    function CalcPosition(aSeconds: integer; aStartPosition, aVelocity: TPosition): TPosition;
+  protected
+    procedure BeforeSolve; override;
+
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
   TAdventOfCodeDay = class(TAdventOfCode)
   private
@@ -1208,7 +1222,87 @@ begin
   Result := PlayOnClawContraption(10000000000000);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay14'}
+procedure TAdventOfCodeDay14.BeforeSolve;
+var
+  i: Integer;
+  Split: TStringDynArray;
+begin
+  inherited;
+  SetLength(FStartPositions, FInput.Count);
+  SetLength(FVelocities, FInput.Count);
 
+  for i := 0 to FInput.Count -1 do
+  begin
+    Split := SplitString(FInput[i], '=, ');
+    FStartPositions[i] := TPosition.Create(Split[1].ToInteger, Split[2].ToInteger);
+    FVelocities[i] := TPosition.Create((Split[4].ToInteger + RoomWidth) mod RoomWidth, (Split[5].ToInteger + RoomHeigth) mod RoomHeigth);
+  end;
+end;
+
+function TAdventOfCodeDay14.CalcPosition(aSeconds: integer; aStartPosition, aVelocity: TPosition): TPosition;
+begin
+  Result := TPosition.Create(
+    (aStartPosition.x + aSeconds * aVelocity.x) mod RoomWidth,
+    (aStartPosition.y + aSeconds * aVelocity.y) mod RoomHeigth);
+end;
+
+function TAdventOfCodeDay14.SolveA: Variant;
+var
+  i, Q1, Q2, Q3, Q4: integer;
+  Position: TPosition;
+begin
+  Q1 :=0;
+  Q2 :=0;
+  Q3 :=0;
+  Q4 :=0;
+
+  for i := 0 to FInput.Count -1 do
+  begin
+    Position := CalcPosition(100, FStartPositions[i], FVelocities[i]);
+
+    if (Position.X < RoomWidth shr 1) and (Position.Y < RoomHeigth shr 1) then
+      Inc(Q1);
+    if (Position.X < RoomWidth shr 1) and (Position.Y > RoomHeigth shr 1) then
+      Inc(Q2);
+    if (Position.X > RoomWidth shr 1) and (Position.Y < RoomHeigth shr 1) then
+      Inc(Q3);
+    if (Position.X > RoomWidth shr 1) and (Position.Y > RoomHeigth shr 1) then
+      Inc(Q4);
+  end;
+
+  Result := Q1 * Q2 * Q3 * Q4;
+end;
+
+function TAdventOfCodeDay14.SolveB: Variant;
+var
+  i: integer;
+  AllUnique: Boolean;
+  Grid: TAocStaticGrid<Boolean>;
+  Position: TPosition;
+begin
+  Result := 0;
+  AllUnique := False;
+
+  while not AllUnique do
+  begin
+    Grid := TAocStaticGrid<Boolean>.Create(RoomWidth, RoomHeigth);
+    Inc(Result);
+
+    for i := 0 to FInput.Count-1 do
+    begin
+      Position := CalcPosition(Result, FStartPositions[i], FVelocities[i]);
+
+      AllUnique := not Grid.GetValue(Position);
+      if not AllUnique then
+        Break;
+      Grid.SetData(Position, True);
+    end;
+
+    Grid.Free;
+  end;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -1227,7 +1321,7 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14
   ]);
 
 end.
