@@ -69,12 +69,13 @@ type
     destructor Destroy; override;
 
     procedure PrintToDebug;
-    procedure SetData(aPosition: TPosition; aValue: TValue); virtual; abstract;
+    procedure SetData(aPosition: TPosition; aValue: TValue); overload; virtual; abstract;
+    procedure SetData(aX, aY: integer; aValue: TValue); overload;
     function TryGetValue(aX, aY: integer; out aValue: TValue): boolean; overload;
     function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; virtual; abstract;
     function GetValue(aX, aY: integer): TValue; overload;
     function GetValue(aPosition: TPosition): TValue; overload; virtual; abstract;
-
+    
     property MaxX: integer read FMaxX;
     property MaxY: integer read FMaxY;
   end;
@@ -86,6 +87,8 @@ type
   protected
     procedure CreateDataHolder; override;
   public
+    destructor Destroy; override;
+
     procedure SetData(aPosition: TPosition; aValue: TValue); override;
     function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; override;
     function GetValue(aPosition: TPosition): TValue; overload; override;
@@ -386,7 +389,7 @@ constructor TAocGrid<TValue>.create(aStrings: TStrings; aCharToValueConverter: T
 var
   tmpX, tmpY: Integer;
 begin
-  Create(Length(aStrings[0]) -1, aStrings.Count -1);
+  Create(Length(aStrings[0]) -1, aStrings.Count -1, aValueToCharConverter);
 
   for tmpY := 0 to MaxY do
     for tmpX := 0 to MaxX do
@@ -420,6 +423,11 @@ begin
       s := s + FValueConverter(GetValue(TPosition.Create(x, y)));
     Writeln(s);
   end;
+end;
+
+procedure TAocGrid<TValue>.SetData(aX, aY: integer; aValue: TValue);
+begin
+  SetData(TPosition.Create(aX, aY), aValue);
 end;
 
 function TAocGrid<TValue>.TryGetValue(aX, aY: integer; out aValue: TValue): boolean;
@@ -569,7 +577,13 @@ end;
 
 procedure TAocStaticGrid<TValue>.CreateDataHolder;
 begin
-  SetLength(FData, (MaxX + 1) * (MaxY + 1));
+  SetLength(FData, 1 + (MaxX + 1) * (MaxY + 1));
+end;
+
+destructor TAocStaticGrid<TValue>.Destroy;
+begin
+//
+  inherited;
 end;
 
 function TAocStaticGrid<TValue>.GetValue(aPosition: TPosition): TValue;

@@ -146,7 +146,21 @@ type
     function CalcPosition(aSeconds: integer; aStartPosition, aVelocity: TPosition): TPosition;
   protected
     procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
+  TWarehouseElement = (Wall, Empty, Robot, Box, BoxLeft, BoxRight);
+  TAdventOfCodeDay15 = class(TAdventOfCode)
+  private
+    function CharToWareHouseElement(const aChar: Char): TWarehouseElement;
+    function WareHouseElementToChar(const aElement: TWarehouseElement): Char;
+    function ParseInput(out aCommands: string): TAocGrid<TWarehouseElement>;
+    procedure MoveRobot(aWareHouse: TAocGrid<TWarehouseElement>; aRobotStartPosition: TPosition; aCommands: string);
+    function CalcGPSCoordinates(aWareHouse: TAocGrid<TWarehouseElement>; aElement: TWarehouseElement): integer;
+    const
+      WareHouseLabels: Array[TWarehouseElement] of string = ('#', '.', '@', 'O', '[', ']');
+  protected
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -385,6 +399,7 @@ begin
             Break;
           end;
     end;
+  Grid.Free;
 end;
 
 function TAdventOfCodeDay4.SolveA: Variant;
@@ -726,7 +741,7 @@ var
   SeenA, SeenB: TDictionary<int64, boolean>;
 begin
   Grid := TAocGridHelper.CreateCharGrid(FInput);
-  Antennas := TDictionary<char, TList<TPosition>>.Create;
+  Antennas := TObjectDictionary<char, TList<TPosition>>.Create([doOwnsValues]);
   SeenA := TDictionary<int64, boolean>.Create;
   SeenB := TDictionary<int64, boolean>.Create;
 
@@ -1303,6 +1318,239 @@ begin
   end;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay15'}
+function TAdventOfCodeDay15.CharToWareHouseElement(const aChar: Char): TWarehouseElement;
+begin
+  Result := TWarehouseElement(IndexStr(aChar, WareHouseLabels))
+end;
+
+function TAdventOfCodeDay15.WareHouseElementToChar(const aElement: TWarehouseElement): Char;
+begin
+  Result := WareHouseLabels[aElement][1];
+end;
+
+function TAdventOfCodeDay15.ParseInput(out aCommands: string): TAocGrid<TWarehouseElement>;
+var
+  map: TStringList;
+  GridLine: Boolean;
+  i: integer;
+begin
+  Map := TStringList.Create;
+  GridLine := True;
+  aCommands := '';
+  for i := 0 to FInput.Count-1 do
+  begin
+    GridLine := GridLine and (FInput[i] <> '');
+    if GridLine then
+      Map.Add(FInput[i])
+    else
+      aCommands := aCommands + FInput[i];
+  end;
+  Result := TAocStaticGrid<TWarehouseElement>.Create(Map, CharToWareHouseElement, WareHouseElementToChar());
+  map.Free;
+end;
+
+type TUndoData = record
+  x, y: int64;
+  Element: TWarehouseElement;
+  class function CreateAsString(aPosition: TPosition; aElement: TWarehouseElement): string; static;
+  class function CreateFromString(aString: string): TUndoData; static;
+  end;
+
+class function TUndoData.CreateAsString(aPosition: TPosition; aElement: TWarehouseElement): string;
+begin
+  Result := aPosition.x.ToString + '-' + aPosition.y.ToString + '-' + Ord(aElement).ToString;
+end;
+
+class function TUndoData.CreateFromString(aString: string): TUndoData;
+var
+  Split: TSTringDynArray;
+begin
+  Split := SplitString(aString, '-');
+  Result.X := Split[0].ToInteger;
+  Result.y := Split[1].ToInteger;
+  Result.Element := TWarehouseElement(Split[2].ToInteger);
+end;
+
+procedure TAdventOfCodeDay15.MoveRobot(aWareHouse: TAocGrid<TWarehouseElement>; aRobotStartPosition: TPosition; aCommands: string);
+var
+  UndoStack: TStack<string>;
+
+  function _SimpleMove(aCurrentPosition: TPosition; aDirection: TAOCDirection): boolean;
+  var
+    CurrentElement, NextElement: TWarehouseElement;
+    TargetPosition: TPosition;
+  begin
+    CurrentElement := aWareHouse.GetValue(aCurrentPosition);
+    TargetPosition := aCurrentPosition.Clone.ApplyDirection(aDirection);
+
+    NextElement := aWareHouse.GetValue(TargetPosition);
+    if NextElement = Wall then
+      Exit(False);
+
+    Result := (NextElement = TWarehouseElement.Empty) or _SimpleMove(TargetPosition, aDirection);
+
+    if not Result then
+      Exit(False);
+
+    aWareHouse.SetData(aCurrentPosition, Empty);
+    aWareHouse.SetData(TargetPosition, CurrentElement);
+  end;
+
+  function _MoveUpDown(aCurrentPosition: TPosition; aDirection: TAocDirection): Boolean;
+  const OffSets: array[Boolean] of integer = (1, -1);
+  var
+    CurrentElement, NeighborElement, NextElement, NextNeigborElement: TWarehouseElement;
+    NeighborPosition, TargetPosition, NeighborTargetPosition: TPosition;
+  begin
+    CurrentElement := aWareHouse.GetValue(aCurrentPosition);
+    NeighborPosition := aCurrentPosition.Clone.AddDelta(Offsets[CurrentElement = TWarehouseElement.BoxRight], 0);
+    NeighborElement := aWareHouse.GetValue(NeighborPosition);
+    TargetPosition := aCurrentPosition.Clone.ApplyDirection(aDirection);
+    NeighborTargetPosition := NeighborPosition.Clone.ApplyDirection(aDirection);
+
+    NextElement := aWareHouse.GetValue(TargetPosition);
+    NextNeigborElement := aWareHouse.GetValue(NeighborTargetPosition);
+
+    if (NextElement = Wall) or (NextNeigborElement = Wall) then
+      Exit(False);
+
+    Result := (NextElement = TWarehouseElement.Empty) or _MoveUpDown(TargetPosition, aDirection);
+
+    if not Result then
+      Exit;
+
+    NextNeigborElement := aWareHouse.GetValue(NeighborTargetPosition);
+    Result := (NextNeigborElement = TWarehouseElement.Empty) or _MoveUpDown(NeighborTargetPosition, aDirection);
+
+    if not Result then
+      Exit(False);
+
+    UndoStack.Push(TUndoData.CreateAsString(aCurrentPosition, CurrentElement));
+    UndoStack.Push(TUndoData.CreateAsString(TargetPosition, Empty));
+    UndoStack.Push(TUndoData.CreateAsString(NeighborPosition, NeighborElement));
+    UndoStack.Push(TUndoData.CreateAsString(NeighborTargetPosition, Empty));
+
+    aWareHouse.SetData(aCurrentPosition, Empty);
+    aWareHouse.SetData(TargetPosition, CurrentElement);
+    aWareHouse.SetData(NeighborPosition, Empty);
+    aWareHouse.SetData(NeighborTargetPosition, NeighborElement);
+  end;
+
+var
+  i: Integer;
+  RobotPosition: TPosition;
+  Dir: TAOCDirection;
+  Element: TWarehouseElement;
+  UndoData: TUndoData;
+begin
+  UndoStack := TStack<String>.Create;
+  RobotPosition := aRobotStartPosition;
+  aWareHouse.SetData(RobotPosition, Empty);
+
+  for i := 1 to Length(aCommands) do
+  begin
+    Dir := TAOCDirection(IndexStr(aCommands[i], ['^', '>', 'v', '<']));
+    Element := aWareHouse.GetValue(RobotPosition.Clone.ApplyDirection(Dir));
+
+    if Element = Empty then
+      RobotPosition := RobotPosition.Clone.ApplyDirection(Dir) // nothing there, move
+    else if (Element = Box) or (Dir in [East, West]) and (Element in [BoxLeft, BoxRight]) then
+    begin
+      if _SimpleMove(RobotPosition.Clone.ApplyDirection(Dir), Dir) then
+        RobotPosition := RobotPosition.Clone.ApplyDirection(Dir)
+    end
+    else if (Element in [BoxLeft, BoxRight]) then
+    begin
+      UndoStack.Clear;
+      if _MoveUpDown(RobotPosition.Clone.ApplyDirection(Dir), Dir) then
+        RobotPosition := RobotPosition.Clone.ApplyDirection(Dir)
+      else
+      begin
+        while UndoStack.Count > 0 do
+        begin
+          UndoData := TUndoData.CreateFromString(UndoStack.Pop);
+          aWareHouse.SetData(TPosition.Create(UndoData.X, UndoData.Y), UndoData.Element);
+        end
+      end
+    end;
+  end;
+
+  UndoStack.Free;
+end;
+
+function TAdventOfCodeDay15.CalcGPSCoordinates(aWareHouse: TAocGrid<TWarehouseElement>; aElement: TWarehouseElement): integer;
+var
+  x,y: Integer;
+begin
+  Result := 0;
+  for x := 0 to aWareHouse.MaxX do
+    for y := 0 to aWareHouse.MaxY do
+      if aWareHouse.GetValue(x,y) = aElement then
+        Inc(Result, x + 100 * y);
+end;
+
+function TAdventOfCodeDay15.SolveA: Variant;
+var
+  Commands: string;
+  WareHouse: TAocGrid<TWarehouseElement>;
+  RobotStartPosition: TPosition;
+  x,y: integer;
+begin
+  WareHouse := ParseInput(Commands);
+  for x := 0 to WareHouse.MaxX do
+    for y := 0 to WareHouse.MaxY do
+      if WareHouse.GetValue(x,y) = TWarehouseElement.Robot then
+        RobotStartPosition := TPosition.Create(x, y);
+
+  MoveRobot(WareHouse, RobotStartPosition, Commands);
+  Result := CalcGPSCoordinates(WareHouse, Box);
+  WareHouse.Free;
+end;
+
+function TAdventOfCodeDay15.SolveB: Variant;
+var
+  WareHouse, ExpandedWareHouse: TAocGrid<TWarehouseElement>;
+  Commands: string;
+  x,y: Integer;
+  RobotPosition: TPosition;
+  Elemenent: TWarehouseElement;
+begin
+  WareHouse := ParseInput(Commands);
+
+  ExpandedWareHouse := TAocStaticGrid<TWarehouseElement>.Create(WareHouse.MaxX * 2 + 1, WareHouse.MaxY, WareHouseElementToChar);
+  for x := 0 to WareHouse.MaxX do
+    for y := 0 to WareHouse.MaxY do
+    begin
+      Elemenent := WareHouse.GetValue(x, y);
+      case Elemenent of
+        Wall, Empty:
+          begin
+            ExpandedWareHouse.SetData(x*2, y, Elemenent);
+            ExpandedWareHouse.SetData(x*2 +1, y, Elemenent);
+          end;
+        Box:
+          begin
+            ExpandedWareHouse.SetData(x*2, y, BoxLeft);
+            ExpandedWareHouse.SetData(x*2 +1, y, BoxRight);
+          end;
+        Robot:
+          begin
+            ExpandedWareHouse.SetData(x*2, y, Robot);
+            ExpandedWareHouse.SetData(x*2 +1, y, Empty);
+            RobotPosition := TPosition.Create(x*2, y);
+          end;
+        end;
+    end;
+
+  MoveRobot(ExpandedWareHouse, RobotPosition, Commands);
+  Result := CalcGPSCoordinates(ExpandedWareHouse, TWarehouseElement.BoxLeft);
+
+  WareHouse.Free;
+  ExpandedWareHouse.Free;
+end;
+
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -1321,7 +1569,7 @@ initialization
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15
   ]);
 
 end.
