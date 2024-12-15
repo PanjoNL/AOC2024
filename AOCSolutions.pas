@@ -9,7 +9,7 @@ uses
   System.Diagnostics, AOCBase, RegularExpressions, System.DateUtils,
   System.StrUtils,
   System.Math, uAOCUtils, System.Types, PriorityQueues, System.Json,
-  AocLetterReader, uAOCTimer,
+  AocLetterReader, uAOCTimer, uAocGrid,
   System.Threading, System.SyncObjs, system.Hash;
 
 type
@@ -64,7 +64,10 @@ type
 
   TAdventOfCodeDay6 = class(TAdventOfCode)
   private
-    SolutionA, SolutionB: integer;
+    type TGridElement = (geWall, geEmpty, geGaurd);
+    var
+      SolutionA, SolutionB: integer;
+      function CharToGridElement(Const aChar: Char): TGridElement;
   protected
     procedure BeforeSolve; override;
     function SolveA: Variant; override;
@@ -150,7 +153,7 @@ type
     function SolveB: Variant; override;
   end;
 
-  TWarehouseElement = (Wall, Empty, Robot, Box, BoxLeft, BoxRight);
+  type TWarehouseElement = (Wall, Empty, Robot, Box, BoxLeft, BoxRight);
   TAdventOfCodeDay15 = class(TAdventOfCode)
   private
     function CharToWareHouseElement(const aChar: Char): TWarehouseElement;
@@ -369,36 +372,34 @@ var
   end;
 
 var
-  BasePos: TPosition;
   Dirs: TAOCDirections;
-  x,y,i: Integer;
+  i: Integer;
+  Pair: TPair<TPosition, char>;
 begin
   Grid := TAocGridHelper.CreateCharGrid(FInput);
 
   SolutionA := 0;
   SolutionB := 0;
 
-  for x := 0 to Grid.MaxX do
-    for y := 0 to Grid.MaxY do
-    begin
-      BasePos := TPosition.Create(x ,y);
+  for Pair in Grid do
 
-      if Grid.GetValue(BasePos) = 'X' then
-        for Dirs in OffSetsA do
-          if _checkPos(BasePos, Dirs, 1, 'M') and _checkPos(BasePos, Dirs, 2, 'A') and _checkPos(BasePos, Dirs, 3, 'S') then
-            inc(SolutionA);
+  begin
+    if Pair.Value = 'X' then
+      for Dirs in OffSetsA do
+        if _checkPos(Pair.Key, Dirs, 1, 'M') and _checkPos(Pair.Key, Dirs, 2, 'A') and _checkPos(Pair.Key, Dirs, 3, 'S') then
+          inc(SolutionA);
 
-      if Grid.GetValue(BasePos) = 'A' then
-        for i := 0 to 3 do
-          if _checkPos(BasePos, OffSetsB[(i+0) mod 4], 1, 'M') and
-             _checkPos(BasePos, OffSetsB[(i+1) mod 4], 1, 'M') and
-             _checkPos(BasePos, OffSetsB[(i+2) mod 4], 1, 'S') and
-             _checkPos(BasePos, OffSetsB[(i+3) mod 4], 1, 'S') then
-          begin
-            inc(SolutionB);
-            Break;
-          end;
-    end;
+    if Pair.Value = 'A' then
+      for i := 0 to 3 do
+        if _checkPos(Pair.Key, OffSetsB[(i+0) mod 4], 1, 'M') and
+           _checkPos(Pair.Key, OffSetsB[(i+1) mod 4], 1, 'M') and
+           _checkPos(Pair.Key, OffSetsB[(i+2) mod 4], 1, 'S') and
+           _checkPos(Pair.Key, OffSetsB[(i+3) mod 4], 1, 'S') then
+        begin
+          inc(SolutionB);
+          Break;
+        end;
+  end;
   Grid.Free;
 end;
 
@@ -541,9 +542,14 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay6'}
+function TAdventOfCodeDay6.CharToGridElement(const aChar: Char): TGridElement;
+begin
+  Result := TGridElement(IndexStr(aChar, ['#','.','^']));
+end;
+
 procedure TAdventOfCodeDay6.BeforeSolve;
 var
-  Grid: TAocGrid<char>;
+  Grid: TAocGrid<TGridElement>;
 
   function _CreateTask(aGaurdPosition, aBlock: TPosition; aGaurdFacing: TAOCDirection): ITask;
   begin
@@ -553,7 +559,7 @@ var
         GaurdPosition, Next: TPosition;
         GaurdFacing: TAOCDirection;
         GaurdFacings, intGaurdFacing: integer;
-        chr: Char;
+        chr: TGridElement;
       begin
         Seen := TAocStaticGrid<integer>.Create(Grid.MaxX, Grid.MaxY);
         GaurdPosition := aGaurdPosition;
@@ -566,7 +572,7 @@ var
             if not Grid.TryGetValue(next.x, next.y, Chr) then
               Exit;
 
-            if (chr = '#') or (next.CacheKey = aBlock.CacheKey) then
+            if (chr = TGridElement.geWall) or (next.CacheKey = aBlock.CacheKey) then
             begin
               GaurdFacing := RotateDirection(GaurdFacing, 1);
               intGaurdFacing := 1 shl ord(GaurdFacing);
@@ -593,12 +599,12 @@ var
   end;
 
 var
-  x,y: integer;
-  chr: char;
+  chr: TGridElement;
   GaurdPosition, Next: TPosition;
   GaurdFacing: TAOCDirection;
   Tasks: TList<ITask>;
   SeenA: TAocStaticGrid<Boolean>;
+  Pair: TPair<TPosition, TGridElement>;
 begin
   inherited;
 
@@ -607,18 +613,12 @@ begin
   SolutionA := 1;
   SolutionB := 0;
 
-  Grid := TAocGridHelper.CreateCharGrid(FInput);
+  Grid := TAocStaticGrid<TGridElement>.Create(FInput, CharToGridElement, nil);
   SeenA := TAocStaticGrid<Boolean>.Create(Grid.MaxX, Grid.MaxY);
 
-  for x := 0 to Grid.MaxX do
-    for y := 0 to Grid.MaxY do
-    begin
-      if Grid.GetValue(x, y)  = '^' then
-      begin
-        GaurdPosition := TPosition.Create(x, y);
-        break;
-      end;
-    end;
+  for Pair in Grid do
+    if Pair.Value = TGridElement.geGaurd then
+      GaurdPosition := Pair.Key;
 
   GaurdFacing := TAOCDirection.North;
   SeenA.SetData(GaurdPosition, true);
@@ -628,7 +628,7 @@ begin
     if not Grid.TryGetValue(next.x, next.y, Chr) then
       Break; // Out of bounds
 
-    if (chr = '#') then
+    if chr = TGridElement.geWall then
       GaurdFacing := RotateDirection(GaurdFacing, 1)
     else
     begin
@@ -715,7 +715,7 @@ var
     Pos: TPosition;
   begin
     Pos := TPosition.Create(Start.x + Delta.X, Start.Y + Delta.Y);
-    if (Pos.CacheKey <> LocI.CacheKey) and (Pos.CacheKey <> LocJ.CacheKey) and InRange(Pos.X, 0, Grid.MaxX) and InRange(pos.y, 0, Grid.MaxY) then
+    if (Pos.CacheKey <> LocI.CacheKey) and (Pos.CacheKey <> LocJ.CacheKey) and InRange(Pos.X, 0, Grid.MaxX-1) and InRange(pos.y, 0, Grid.MaxY-1) then
       Seen.AddOrSetValue(Pos.CacheKey, true);
   end;
 
@@ -725,7 +725,7 @@ var
   begin
     Pos := TPosition.Create(Start.x, Start.Y);
 
-    while InRange(Pos.X, 0, Grid.MaxX) and InRange(pos.y, 0, Grid.MaxY) do
+    while InRange(Pos.X, 0, Grid.MaxX-1) and InRange(pos.y, 0, Grid.MaxY-1) do
     begin
       Seen.AddOrSetValue(Pos.CacheKey, True);
       Pos.AddDelta(Delta.X, Delta.Y);
@@ -735,31 +735,29 @@ var
 var
   Antennas: TDictionary<char, TList<TPosition>>;
   lst: TList<TPosition>;
-  chr: char;
   x,y,i,j: integer;
   posI, posJ: TPosition;
   SeenA, SeenB: TDictionary<int64, boolean>;
+  Pair: TPair<TPosition,char>;
 begin
   Grid := TAocGridHelper.CreateCharGrid(FInput);
   Antennas := TObjectDictionary<char, TList<TPosition>>.Create([doOwnsValues]);
   SeenA := TDictionary<int64, boolean>.Create;
   SeenB := TDictionary<int64, boolean>.Create;
 
-  for x := 0 to Grid.MaxX do
-    for y := 0 to Grid.MaxY do
+  for Pair in Grid do
+  begin
+    if Pair.Value = '.' then
+      continue;
+
+    if not Antennas.TryGetValue(Pair.Value, lst) then
     begin
-      chr := Grid.GetValue(x, y);
-      if chr = '.' then
-        continue;
-
-      if not Antennas.TryGetValue(chr, lst) then
-      begin
-        lst := TList<TPosition>.Create;
-        Antennas.Add(chr, lst);
-      end;
-
-      lst.Add(TPosition.Create(x,y));
+      lst := TList<TPosition>.Create;
+      Antennas.Add(Pair.Value, lst);
     end;
+
+    lst.Add(Pair.Key);
+  end;
 
   for lst in Antennas.Values do
   begin
@@ -948,7 +946,7 @@ procedure TAdventOfCodeDay10.BeforeSolve;
 var
   Grid: TAocGrid<integer>;
 
-  procedure _Calc(aX, aY: integer);
+  procedure _Calc(aPosition: TPosition);
   var
     SeenTrailHeads: TDictionary<TPosition,integer>;
     Work: TStack<TPosition>;
@@ -958,7 +956,7 @@ var
   begin
     SeenTrailHeads := TDictionary<TPosition,integer>.Create;
     Work := TStack<TPosition>.Create;
-    Work.Push(TPosition.Create(aX, aY));
+    Work.Push(aPosition);
 
     while Work.Count > 0 do
     begin
@@ -991,16 +989,15 @@ var
   end;
 
 var
-  x,y: integer;
+  Pair: TPair<TPosition,integer>;
 begin
   SolutionA := 0;
   SolutionB := 0;
   Grid := TAocGridHelper.CreateIntegerGrid(FInput);
 
-  for x := 0 to grid.MaxX do
-    for y := 0 to grid.MaxY do
-      if Grid.GetValue(x, y) = 0 then
-      _Calc(x, y);
+  for Pair in Grid do
+    if Pair.Value = 0 then
+      _Calc(Pair.Key);
 
   Grid.Free;
 end;
@@ -1099,13 +1096,14 @@ end;
 {$REGION 'TAdventOfCodeDay12'}
 procedure TAdventOfCodeDay12.BeforeSolve;
 var
-  x, y, CurrentArea, FenceCount, SideCount: Integer;
+  CurrentArea, FenceCount, SideCount: Integer;
   Grid: TAocGrid<Char>;
-  Chr1, Chr2, chr3, CurrentChar: char;
+  Chr1, Chr2, chr3: char;
   Seen: TAocStaticGrid<Boolean>;
   Work: TStack<TPosition>;
   Pos: TPosition;
   Dir: TAOCDirection;
+  Pair: TPair<TPosition,Char>;
 begin
   SolutionA := 0;
   SolutionB := 0;
@@ -1114,54 +1112,51 @@ begin
   Seen := TAocStaticGrid<Boolean>.Create(Grid.MaxX, Grid.MaxY);
   Work := TStack<TPosition>.Create;
 
-  for x := 0 to Grid.MaxX do
-    for y := 0 to Grid.MaxY do
+  for Pair in Grid do
+  begin
+    if Seen.GetValue(Pair.Key) then
+      Continue;
+
+    CurrentArea := 0;
+    FenceCount := 0;
+    SideCount := 0;
+
+    Work.Push(Pair.Key);
+
+    while Work.Count > 0 do
     begin
-      Pos := TPosition.Create(x, y);
+      Pos := Work.Pop;
+
       if Seen.GetValue(Pos) then
         Continue;
 
-      CurrentChar := Grid.GetValue(pos.x, Pos.y);
-      CurrentArea := 0;
-      FenceCount := 0;
-      SideCount := 0;
+      Seen.SetData(Pos, True);
 
-      Work.Push(Pos);
-
-      while Work.Count > 0 do
+      Inc(CurrentArea);
+      for dir in [North, East, South, West] do
       begin
-        Pos := Work.Pop;
+        Grid.TryGetValue(Pos.Clone.ApplyDirection(dir), Chr1);
+        Grid.TryGetValue(Pos.Clone.ApplyDirection(RotateDirection(dir, 1)), Chr2);
 
-        if Seen.GetValue(Pos) then
-          Continue;
-
-        Seen.SetData(Pos, True);
-
-        Inc(CurrentArea);
-        for dir in [North, East, South, West] do
+        if (chr1 <> Pair.Value) then
         begin
-          Grid.TryGetValue(Pos.Clone.ApplyDirection(dir), Chr1);
-          Grid.TryGetValue(Pos.Clone.ApplyDirection(RotateDirection(dir, 1)), Chr2);
-
-          if (chr1 <> CurrentChar) then
-          begin
-            Inc(FenceCount);
-            if Chr2 <> CurrentChar then
-              Inc(SideCount);
-          end
-          else
-          begin
-            Work.Push(Pos.Clone.ApplyDirection(Dir));
-            if (chr2 = CurrentChar) and Grid.TryGetValue(Pos.Clone.ApplyDirection(dir).ApplyDirection(RotateDirection(dir, 1)), Chr3) and (Chr3 <> CurrentChar) then
-              Inc(SideCount);
-          end;
-
+          Inc(FenceCount);
+          if Chr2 <> Pair.Value then
+            Inc(SideCount);
+        end
+        else
+        begin
+          Work.Push(Pos.Clone.ApplyDirection(Dir));
+          if (chr2 = Pair.Value) and Grid.TryGetValue(Pos.Clone.ApplyDirection(dir).ApplyDirection(RotateDirection(dir, 1)), Chr3) and (Chr3 <> Pair.Value) then
+            Inc(SideCount);
         end;
-      end;
 
-      inc(SolutionA, CurrentArea * FenceCount);
-      Inc(SolutionB, CurrentArea * SideCount);
+      end;
     end;
+
+    inc(SolutionA, CurrentArea * FenceCount);
+    Inc(SolutionB, CurrentArea * SideCount);
+  end;
 
   Grid.Free;
   Seen.Free;
@@ -1346,7 +1341,7 @@ begin
     else
       aCommands := aCommands + FInput[i];
   end;
-  Result := TAocStaticGrid<TWarehouseElement>.Create(Map, CharToWareHouseElement, WareHouseElementToChar());
+  Result := TAocStaticGrid<TWarehouseElement>.Create(Map, CharToWareHouseElement, WareHouseElementToChar);
   map.Free;
 end;
 
@@ -1481,13 +1476,12 @@ end;
 
 function TAdventOfCodeDay15.CalcGPSCoordinates(aWareHouse: TAocGrid<TWarehouseElement>; aElement: TWarehouseElement): integer;
 var
-  x,y: Integer;
+  Pair: TPair<TPosition, TWarehouseElement>;
 begin
   Result := 0;
-  for x := 0 to aWareHouse.MaxX do
-    for y := 0 to aWareHouse.MaxY do
-      if aWareHouse.GetValue(x,y) = aElement then
-        Inc(Result, x + 100 * y);
+  for Pair in aWareHouse do
+    if Pair.Value = aElement then
+      Inc(Result, Pair.Key.X + 100 * Pair.Key.Y);
 end;
 
 function TAdventOfCodeDay15.SolveA: Variant;
@@ -1495,13 +1489,15 @@ var
   Commands: string;
   WareHouse: TAocGrid<TWarehouseElement>;
   RobotStartPosition: TPosition;
-  x,y: integer;
+  Pair: TPair<TPosition, TWarehouseElement>;
 begin
   WareHouse := ParseInput(Commands);
-  for x := 0 to WareHouse.MaxX do
-    for y := 0 to WareHouse.MaxY do
-      if WareHouse.GetValue(x,y) = TWarehouseElement.Robot then
-        RobotStartPosition := TPosition.Create(x, y);
+  for Pair in WareHouse do
+    if Pair.Value = TWarehouseElement.Robot then
+    begin
+      RobotStartPosition := Pair.Key;
+      break;
+    end;
 
   MoveRobot(WareHouse, RobotStartPosition, Commands);
   Result := CalcGPSCoordinates(WareHouse, Box);
@@ -1518,9 +1514,9 @@ var
 begin
   WareHouse := ParseInput(Commands);
 
-  ExpandedWareHouse := TAocStaticGrid<TWarehouseElement>.Create(WareHouse.MaxX * 2 + 1, WareHouse.MaxY, WareHouseElementToChar);
-  for x := 0 to WareHouse.MaxX do
-    for y := 0 to WareHouse.MaxY do
+  ExpandedWareHouse := TAocStaticGrid<TWarehouseElement>.Create(WareHouse.MaxX * 2, WareHouse.MaxY, WareHouseElementToChar);
+  for x := 0 to WareHouse.MaxX-1 do
+    for y := 0 to WareHouse.MaxY-1 do
     begin
       Elemenent := WareHouse.GetValue(x, y);
       case Elemenent of

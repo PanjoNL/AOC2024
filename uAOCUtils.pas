@@ -54,70 +54,6 @@ type
     class function Max(a, b: TPosition3): TPosition3; static;
   end;
 
-  TCharToValueConverter<TValue> = function(const aChar: Char): TValue of object;
-  TValueToCharConverter<TValue> = function(const aValue: TValue): Char of object;
-
-  TAocGrid<TValue> = class
-  private
-    FMaxX, FMaxY: integer;
-    FValueConverter: TValueToCharConverter<TValue>;
-  protected
-    procedure CreateDataHolder; virtual; abstract;
-  public
-    constructor Create(aStrings: TStrings; aCharToValueConverter: TCharToValueConverter<TValue>; aValueToCharConverter: TValueToCharConverter<TValue>); reintroduce; overload;
-    constructor Create(aMaxX, aMaxY: integer; aValueToCharConverter: TValueToCharConverter<TValue> = nil) overload;
-    destructor Destroy; override;
-
-    procedure PrintToDebug;
-    procedure SetData(aPosition: TPosition; aValue: TValue); overload; virtual; abstract;
-    procedure SetData(aX, aY: integer; aValue: TValue); overload;
-    function TryGetValue(aX, aY: integer; out aValue: TValue): boolean; overload;
-    function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; virtual; abstract;
-    function GetValue(aX, aY: integer): TValue; overload;
-    function GetValue(aPosition: TPosition): TValue; overload; virtual; abstract;
-    
-    property MaxX: integer read FMaxX;
-    property MaxY: integer read FMaxY;
-  end;
-
-  TAocStaticGrid<TValue> = class(TAocGrid<TValue>)
-  private
-    FData: Array of TValue;
-    function KeyIndex(aPosition: TPosition): integer;
-  protected
-    procedure CreateDataHolder; override;
-  public
-    destructor Destroy; override;
-
-    procedure SetData(aPosition: TPosition; aValue: TValue); override;
-    function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; override;
-    function GetValue(aPosition: TPosition): TValue; overload; override;
-  end;
-
-  TAocDynamicGrid<TValue> = class(TAocGrid<TValue>)
-  private
-    FData: TDictionary<int64,TValue>;
-  protected
-    procedure CreateDataHolder; override;
-  public
-    destructor Destroy; override;
-
-    procedure SetData(aPosition: TPosition; aValue: TValue); override;
-    function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; override;
-    function GetValue(aPosition: TPosition): TValue; overload; override;
-  end;
-
-  TAocGridHelper = class
-  private
-    class function CharToChar(const aChar: Char): Char;
-    class function CharToInt(const aChar: Char): Integer;
-    class function IntToChar(const aInt: integer): char;
-  public
-    class function CreateCharGrid(aStrings: TStrings; asDynamicGrid: boolean = false): TAocGrid<Char>;
-    class function CreateIntegerGrid(aStrings: TStrings; asDynamicGrid: boolean = false): TAocGrid<Integer>;
-  end;
-
-
 function GCD(Number1, Number2: int64): int64;
 function LCM(Number1, Number2: int64): int64;
 function OccurrencesOfChar(const S: string; const C: string): integer;
@@ -203,7 +139,7 @@ class function AOCUtils.DayIndexFromClassName(Const aClassName: String): String;
 var i: Integer;
 begin
   i := Length('TAdventOfCodeDay');
-  Result := Copy(aClassName, i + 1, Length(aClassName) - i); //
+  Result := Copy(aClassName, i + 1, Length(aClassName) - i);
 end;
 
 class procedure AOCUtils.DoAdventOfCode(aAdventOfCodeRef: TAdventOfCodeRef; aConfig: TAOCConfig);
@@ -385,60 +321,6 @@ begin
   Result.z := Math.Min(a.z, b.z);
 end;
 
-constructor TAocGrid<TValue>.create(aStrings: TStrings; aCharToValueConverter: TCharToValueConverter<TValue>; aValueToCharConverter: TValueToCharConverter<TValue>);
-var
-  tmpX, tmpY: Integer;
-begin
-  Create(Length(aStrings[0]) -1, aStrings.Count -1, aValueToCharConverter);
-
-  for tmpY := 0 to MaxY do
-    for tmpX := 0 to MaxX do
-      SetData(TPosition.Create(tmpX, tmpY), aCharToValueConverter(aStrings[tmpY][tmpX+1]));
-end;
-
-constructor TAocGrid<TValue>.Create(aMaxX, aMaxY: integer; aValueToCharConverter: TValueToCharConverter<TValue> = nil);
-begin
-  FMaxX := aMaxX;
-  FMaxY := aMaxY;
-  FValueConverter := aValueToCharConverter;
-
-  CreateDataHolder;
-end;
-
-destructor TAocGrid<TValue>.Destroy;
-begin
-  inherited;
-end;
-
-procedure TAocGrid<TValue>.PrintToDebug;
-var
-  x, y: integer;
-  s: string;
-begin
-  Writeln('');
-  for y := 0 to MaxY do
-  begin
-    s := '';
-    for x := 0 to MaxX do
-      s := s + FValueConverter(GetValue(TPosition.Create(x, y)));
-    Writeln(s);
-  end;
-end;
-
-procedure TAocGrid<TValue>.SetData(aX, aY: integer; aValue: TValue);
-begin
-  SetData(TPosition.Create(aX, aY), aValue);
-end;
-
-function TAocGrid<TValue>.TryGetValue(aX, aY: integer; out aValue: TValue): boolean;
-begin
-  Result := TryGetValue(TPosition.Create(aX, aY), aValue);
-end;
-
-function TAocGrid<TValue>.GetValue(aX, aY: integer): TValue;
-begin
-  Result := GetValue(TPosition.Create(aX, aY));
-end;
 
 function GCD(Number1, Number2: int64): int64;
 var Temp: int64;
@@ -531,111 +413,6 @@ begin
       Result := Result + s[i];
     end;
   end;
-end;
-
-{ TAocGridHelper }
-
-class function TAocGridHelper.CreateCharGrid(aStrings: TStrings; asDynamicGrid: boolean = false): TAocGrid<Char>;
-begin
-  if asDynamicGrid then
-  begin
-    Result := TAocDynamicGrid<Char>.create(aStrings, CharToChar, CharToChar);
-    exit;
-  end;
-
-  Result := TAocStaticGrid<Char>.create(aStrings, CharToChar, CharToChar);
-end;
-
-class function TAocGridHelper.CreateIntegerGrid(aStrings: TStrings; asDynamicGrid: boolean = false): TAocGrid<Integer>;
-begin
-  if asDynamicGrid then
-  begin
-    Result := TAocDynamicGrid<Integer>.create(aStrings, CharToInt, IntToChar);
-    exit;
-  end;
-
-  Result := TAocStaticGrid<Integer>.create(aStrings, CharToInt, IntToChar);
-end;
-
-class function TAocGridHelper.CharToChar(const aChar: Char): Char;
-begin
-  Result := aChar;
-end;
-
-class function TAocGridHelper.CharToInt(const aChar: Char): Integer;
-begin
-  Result := StrToInt(aChar);
-end;
-
-class function TAocGridHelper.IntToChar(const aInt: integer): char;
-begin
-  Assert(aInt < 10);
-  Result := aInt.ToString[1];
-end;
-
-{ TAocStaticGrid<TValue> }
-
-procedure TAocStaticGrid<TValue>.CreateDataHolder;
-begin
-  SetLength(FData, 1 + (MaxX + 1) * (MaxY + 1));
-end;
-
-destructor TAocStaticGrid<TValue>.Destroy;
-begin
-//
-  inherited;
-end;
-
-function TAocStaticGrid<TValue>.GetValue(aPosition: TPosition): TValue;
-begin
-  Result := FData[KeyIndex(aPosition)];
-end;
-
-function TAocStaticGrid<TValue>.KeyIndex(aPosition: TPosition): integer;
-begin
-  Result := aPosition.X * (MaxX + 1) + aPosition.Y;
-end;
-
-procedure TAocStaticGrid<TValue>.SetData(aPosition: TPosition; aValue: TValue);
-begin
-  FData[KeyIndex(aPosition)] := aValue;
-end;
-
-function TAocStaticGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
-begin
-  Result := InRange(aPosition.X, 0, MaxX) and InRange(aPosition.Y, 0, MaxY);
-  if Result then
-    aValue := GetValue(aPosition)
-  else
-    aValue := Default(TValue);
-end;
-
-{ TAocDynamicGrid<TValue> }
-
-procedure TAocDynamicGrid<TValue>.CreateDataHolder;
-begin
-  FData := TDictionary<Int64,TValue>.Create((MaxX + 1) * (MaxY + 1));
-end;
-
-destructor TAocDynamicGrid<TValue>.Destroy;
-begin
-  FData.Free;
-  inherited;
-end;
-
-function TAocDynamicGrid<TValue>.GetValue(aPosition: TPosition): TValue;
-begin
-  Result := FData[aPosition.CacheKey];
-end;
-
-procedure TAocDynamicGrid<TValue>.SetData(aPosition: TPosition; aValue: TValue);
-begin
-  FData.AddOrSetValue(aPosition.CacheKey, aValue);
-end;
-
-function TAocDynamicGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
-begin
-  Result := FData.TryGetValue(aPosition.CacheKey, aValue);
 end;
 
 end.

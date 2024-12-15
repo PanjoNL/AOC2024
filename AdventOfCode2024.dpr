@@ -11,7 +11,8 @@ uses
   PriorityQueues in 'PriorityQueue\PriorityQueues.pas',
   PriorityQueues.Detail in 'PriorityQueue\PriorityQueues.Detail.pas',
   AOCLetterReader in 'AOCLetterReader.pas',
-  uAOCTimer in 'uAOCTimer.pas';
+  uAOCTimer in 'uAOCTimer.pas',
+  uAocGrid in 'uAocGrid.pas';
 
 begin
   Application.Initialize;
