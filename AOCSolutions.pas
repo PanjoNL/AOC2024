@@ -168,6 +168,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay16 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -1547,6 +1556,168 @@ begin
 end;
 
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay16'}
+type TReindeerMazePath = class
+  Parent: TReindeerMazePath;
+  Position: TPosition;
+  Faceing: TAOCDirection;
+  Score: Integer;
+  AlternativePaths: TList<TReindeerMazePath>;
+  SeenPositions: TList<int64>;
+
+  Constructor Create(aParent: TReindeerMazePath; aPosition: TPosition; aFacing: TAOCDirection; aScore: integer);
+  destructor Destroy; override;
+  procedure AddSeenPositionsToList(Seen: TDictionary<int64, Boolean>);
+end;
+
+procedure TReindeerMazePath.AddSeenPositionsToList(Seen: TDictionary<int64, Boolean>);
+var
+  Pos: int64;
+  Alt: TReindeerMazePath;
+begin
+  for Pos in SeenPositions do
+    Seen.AddOrSetValue(Pos, True);
+  for Alt in AlternativePaths do
+    Alt.AddSeenPositionsToList(Seen);
+  if Assigned(Parent) then
+    Parent.AddSeenPositionsToList(Seen);
+end;
+
+constructor TReindeerMazePath.Create(aParent: TReindeerMazePath; aPosition: TPosition; aFacing: TAOCDirection; aScore: integer);
+begin
+  Parent := aParent;
+  Position := aPosition;
+  Faceing := aFacing;
+  Score := aScore;
+  AlternativePaths := TList<TReindeerMazePath>.Create;
+  SeenPositions := TList<int64>.Create;
+end;
+
+destructor TReindeerMazePath.Destroy;
+begin
+  AlternativePaths.Free;
+  SeenPositions.Free;
+  inherited;
+end;
+
+procedure TAdventOfCodeDay16.BeforeSolve;
+var
+  Paths: TList<TReindeerMazePath>;
+
+  function _CreateOrUpdatePath(aDoCreate: Boolean; aCurrentPath: TReindeerMazePath; aPosition: TPosition; aFaceing: TAOCDirection; aScore: Integer): TReindeerMazePath;
+  begin
+    if aDoCreate then
+    begin
+      Result := TReindeerMazePath.Create(aCurrentPath, aPosition, aFaceing, aScore);
+      Paths.Add(Result);
+      Exit;
+    end;
+
+    Result := aCurrentPath;
+    Result.Position := aPosition;
+    Result.Faceing := aFaceing;
+    Result.Score := aScore;
+  end;
+
+var
+  i: Integer;
+  DidRotate, CanRotate: boolean;
+  Grid: TAocGrid<Char>;
+  Pair: TPair<TPosition,Char>;
+  Reindeer, Target, Next: TPosition;
+  Work, NextWork: TReindeerMazePath;
+  Queue: PriorityQueue<Integer, TReindeerMazePath>;
+  Best: TPair<integer, TReindeerMazePath>;
+  Seen: TAocGrid<TPair<integer, TReindeerMazePath>>;
+  SeenPositions: TDictionary<int64,Boolean>;
+begin
+  Grid := TAocGridHelper.CreateCharGrid(FInput);
+  Paths := TObjectList<TReindeerMazePath>.Create(True);
+  Seen := TAocStaticGrid<TPair<integer, TReindeerMazePath>>.Create(Grid.MaxX, Grid.MaxY);;
+  SeenPositions := TDictionary<int64,boolean>.Create;
+  Queue := PriorityQueue<Integer, TReindeerMazePath>.Create();
+
+  for Pair in Grid do
+  begin
+    if Pair.Value = 'E' then
+      Target := Pair.Key.Clone;
+    if Pair.Value = 'S' then
+      Reindeer := Pair.Key.Clone;
+  end;
+
+  Work := _CreateOrUpdatePath(True, nil, Reindeer, East, 0);
+  Queue.Enqueue(Work.Score, Work);
+
+  while Queue.Count > 0 do
+  begin
+    Work := Queue.Dequeue;
+    Work.SeenPositions.Add(Work.Position.CacheKey);
+
+    if Work.Position.CacheKey = Target.CacheKey then
+      Break;
+
+    CanRotate := True;
+    Best := Seen.GetValue(Work.Position);
+    if (Best.Key = 0) then // never been here
+    begin
+      Best.Key := Work.Score;
+      Best.Value := Work;
+      Seen.SetData(Work.Position, Best);
+    end
+    else
+    begin
+      CanRotate := False;
+      if (Work.Score = Best.Key) then // Been here with the same cost, add reference to path
+      begin
+        Best.Value.AlternativePaths.Add(Work);
+        Continue;
+      end
+    end;
+
+    // Try rotate if possible
+    DidRotate := False;
+    if CanRotate then
+    for i in [1,3] do
+    begin
+      Next := Work.Position.Clone.ApplyDirection(RotateDirection(Work.Faceing, i));
+      if (Grid.GetValue(next) <> '#') then
+      begin
+        NextWork := _CreateOrUpdatePath(True, Work, Next, RotateDirection(Work.Faceing, i), Work.Score + 1001);
+        Queue.Enqueue(NextWork.Score, NextWork);
+        DidRotate := True;
+      end;
+    end;
+
+    // Try move forward;
+    Next := Work.Position.Clone.ApplyDirection(Work.Faceing);
+    if Grid.GetValue(next) <> '#' then
+    begin
+      NextWork := _CreateOrUpdatePath(DidRotate, Work, Next, Work.Faceing, Work.Score + 1);
+      Queue.Enqueue(NextWork.Score, NextWork);
+    end
+  end;
+
+  SolutionA := Work.Score;
+  Work.AddSeenPositionsToList(SeenPositions);
+  SolutionB := SeenPositions.Count;
+
+  SeenPositions.Free;
+  Grid.Free;
+  Paths.Free;
+  Seen.Free;
+end;
+
+function TAdventOfCodeDay16.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay16.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -1560,12 +1731,14 @@ begin
 end;
 {$ENDREGION}
 
+
 initialization
 
 RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
-  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15
+  TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
+  TAdventOfCodeDay16
   ]);
 
 end.
