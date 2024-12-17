@@ -177,6 +177,18 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay17 = class(TAdventOfCode)
+  private
+    FProgram: string;
+    FParsedProgram: IntegerArray;
+    FRegisterA , FRegisterB, FRegisterC: int64;
+    function RunProgram(InitalARegister: int64): string;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -1716,7 +1728,100 @@ function TAdventOfCodeDay16.SolveB: Variant;
 begin
   Result := SolutionB;
 end;
+{$ENDREGION}
+{$REGION 'TAdventOfCodeDay17'}
+procedure TAdventOfCodeDay17.BeforeSolve;
+var
+  Split: TStringDynArray;
+  i: integer;
+begin
+  FRegisterA := SplitString(FInput[0], ' ')[2].ToInt64;
+  FRegisterB := SplitString(FInput[1], ' ')[2].ToInt64;
+  FRegisterC := SplitString(FInput[2], ' ')[2].ToInt64;
+  FProgram := SplitString(FInput[4], ' ')[1];
+  Split := SplitString(FProgram, ',');
+  SetLength(FParsedProgram, Length(Split));
+  for i := 0 to Length(Split) -1 do
+    FParsedProgram[i] := Split[i].ToInteger;
+end;
 
+function TAdventOfCodeDay17.RunProgram(InitalARegister: int64): string;
+var
+  RegisterA, RegisterB, RegisterC, InstructionPointer: int64;
+
+  function _ComboOperand: int64;
+  begin
+    case FParsedProgram[InstructionPointer+1] of
+      0,1,2,3: result := FParsedProgram[InstructionPointer+1];
+      4: result := RegisterA;
+      5: result := RegisterB;
+      6: result := RegisterC;
+    else
+      raise Exception.Create('Unknwon operand');
+    end;
+  end;
+
+begin
+  Result := '';
+  RegisterA := InitalARegister;
+  RegisterB := FRegisterB;
+  RegisterC := FRegisterC;
+
+  InstructionPointer := 0;
+  while InstructionPointer < Length(FParsedProgram) do
+  begin
+    case FParsedProgram[InstructionPointer] of
+      0: RegisterA := Trunc(RegisterA / Power(2, _ComboOperand));
+      1: RegisterB := RegisterB xor FParsedProgram[InstructionPointer+1];
+      2: RegisterB := _ComboOperand Mod 8;
+      3: InstructionPointer := ifThen(RegisterA <> 0, FParsedProgram[InstructionPointer+1] -2, InstructionPointer);
+      4: RegisterB := RegisterB xor RegisterC;
+      5: Result := Result + ifthen(Result='','',',') + (_ComboOperand mod 8).ToString;
+      6: RegisterB := Trunc(RegisterA / Power(2, _ComboOperand));
+      7: RegisterC := Trunc(RegisterA / Power(2, _ComboOperand));
+    else
+      raise Exception.Create('Unknwon instruction');
+    end;
+
+    Inc(InstructionPointer, 2);
+  end;
+end;
+
+function TAdventOfCodeDay17.SolveA: Variant;
+begin
+  Result := RunProgram(FRegisterA);
+end;
+
+function TAdventOfCodeDay17.SolveB: Variant;
+var BestA: int64;
+
+  procedure _FindA(Const aIdx: integer; CurrentRes: int64);
+  var
+    i, tmpA: int64;
+    s: string;
+  begin
+    if aIdx = -1 then
+    begin
+      Exit;
+    end;
+
+    for i := 0 to 7 do
+    begin
+      tmpA := i shl (aIdx * 3) + CurrentRes;
+      s := RunProgram(tmpA);
+      s := Copy(s, aIdx* 2, maxInt);
+      if FProgram = s then
+        BestA := Min(BestA, TmpA)
+      else if FProgram.EndsWith(s) then
+        _FindA(aIdx - 1, tmpA);
+    end;
+  end;
+
+begin
+  BestA := MaxInt64;
+  _FindA(Length(FParsedProgram)-1, 0);
+  Result := BestA;
+end;
 {$ENDREGION}
 
 {$REGION 'Placeholder'}
@@ -1738,7 +1843,7 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16
+  TAdventOfCodeDay16,TAdventOfCodeDay17
   ]);
 
 end.

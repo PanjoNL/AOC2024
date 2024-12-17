@@ -58,6 +58,7 @@ function GCD(Number1, Number2: int64): int64;
 function LCM(Number1, Number2: int64): int64;
 function OccurrencesOfChar(const S: string; const C: string): integer;
 function BitStringToInt(Const aBit: string): int64;
+function IntToBits(aInt: int64): string;
 function CountTrueBits(aInt: integer): integer;
 function InRange(const aTarget, aLeft, aRight: int64): boolean;
 function RotateDirection(aDirection: TAOCDirection; aAmmount: integer): TAOCDirection;
@@ -371,6 +372,17 @@ begin
       raise Exception.CreateFmt('BitStringToInt encounterd: %s', [aBit[i]]);
     end;
   end;
+end;
+
+function IntToBits(aInt: int64): string;
+var i: integer;
+begin
+  Result := '';
+  for i := 63 downto 0 do
+    if ((aInt shr i) and 1) = 1  then
+      Result := Result + '1'
+    else
+      Result := Result + '0';
 end;
 
 function CountTrueBits(aInt: integer): integer;
