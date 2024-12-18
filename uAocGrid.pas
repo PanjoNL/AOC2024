@@ -80,10 +80,12 @@ type
 
   TAocGridHelper = class
   private
-    class function CharToChar(const aChar: Char): Char;
     class function CharToInt(const aChar: Char): Integer;
     class function IntToChar(const aInt: integer): char;
   public
+    class function CharToChar(const aChar: Char): Char;
+    class function BoolToChar(const aBool: Boolean): Char;
+
     class function CreateCharGrid(aStrings: TStrings; asDynamicGrid: boolean = false): TAocGrid<Char>;
     class function CreateIntegerGrid(aStrings: TStrings; asDynamicGrid: boolean = false): TAocGrid<Integer>;
   end;
@@ -211,6 +213,13 @@ begin
   end;
 
   Result := TAocStaticGrid<Integer>.create(aStrings, CharToInt, IntToChar);
+end;
+
+class function TAocGridHelper.BoolToChar(const aBool: Boolean): Char;
+begin
+  Result := '.';
+  if aBool then
+    Result := '#';
 end;
 
 class function TAocGridHelper.CharToChar(const aChar: Char): Char;

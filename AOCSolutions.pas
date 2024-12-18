@@ -189,6 +189,16 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay18 = class(TAdventOfCode)
+  private
+    FParsedInput: TList<TPosition>;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -1823,6 +1833,154 @@ begin
   Result := BestA;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay18'}
+procedure TAdventOfCodeDay18.BeforeSolve;
+var
+  i: integer;
+  split: TStringDynArray;
+begin
+  inherited;
+
+  FParsedInput := TList<TPosition>.Create;;
+  for i := 0 to FInput.Count -1 do
+  begin
+    Split := SplitString(FInput[i], ',');
+    FParsedInput.Add(TPosition.Create(Split[0].ToInteger,Split[1].ToInteger));
+  end;
+end;
+
+procedure TAdventOfCodeDay18.AfterSolve;
+begin
+  inherited;
+  FParsedInput.Free;
+end;
+
+function TAdventOfCodeDay18.SolveA: Variant;
+Const MemoryWidth = 70 + 1;
+var
+  Grid, Seen: TAocGrid<Boolean>;
+  Work,x,y,i,steps: integer;
+  CurrentPos: TPosition;
+  Dir: TAOCDirection;
+  Queue: TQueue<integer>;
+  IsWall: Boolean;
+begin
+  Grid := TAocStaticGrid<Boolean>.Create(MemoryWidth, MemoryWidth, TAocGridHelper.BoolToChar);
+  Seen := TAocStaticGrid<Boolean>.Create(MemoryWidth, MemoryWidth, TAocGridHelper.BoolToChar);
+  Queue := TQueue<integer>.Create;
+
+  for i := 0 to Min(FParsedInput.Count, 1024)-1 do
+    Grid.SetData(FParsedInput[i], True);
+
+  Queue.Enqueue(0);
+  while Queue.Count > 0 do
+  begin
+    Work := Queue.Dequeue;
+    steps := Work shr 16;
+    x := (Work shr 8) and 255;
+    y := Work and 255;
+
+    if (x = Grid.MaxX-1) and (y = Grid.MaxY - 1) then
+    begin
+      Result := steps;
+      Break;
+    end;
+
+    if Seen.GetValue(x, y) then
+      Continue;
+    Seen.SetData(x, y, true);
+
+    for Dir in [north, East, South, West] do
+    begin
+      CurrentPos := TPosition.Create(x,y).ApplyDirection(dir);
+      if Grid.TryGetValue(CurrentPos, IsWall) and not IsWall then
+        Queue.Enqueue(((steps + 1) shl 16) + (CurrentPos.x shl 8) + CurrentPos.Y);
+    end;
+  end;
+
+  Grid.Free;
+  Seen.Free;
+  Queue.Free;
+end;
+
+function TAdventOfCodeDay18.SolveB: Variant;
+Const MemoryWidth = 70 + 1;
+var
+  Grid, Reachable : TAocGrid<Boolean>;
+
+  procedure FloodFill(aFrom: TPosition);
+  var
+    Todo: TStack<TPosition>;
+    Work, Next: TPosition;
+    Dir: TAOCDirection;
+    IsWall: Boolean;
+  begin
+    Todo := TStack<TPosition>.Create;
+    Todo.Push(aFrom);
+    while Todo.Count > 0 do
+    begin
+      Work := Todo.Pop;
+
+      if Reachable.GetValue(Work) then
+        Continue;
+      Reachable.SetData(Work, True);
+
+      for Dir in [north, East, South, West] do
+      begin
+        Next := Work.Clone.ApplyDirection(dir);
+        if Grid.TryGetValue(Next, IsWall) and not IsWall then
+          Todo.Push(Next);
+      end;
+    end;
+
+    Todo.Free;
+  end;
+
+var
+  i: integer;
+  CurrentPos: TPosition;
+  Dir: TAOCDirection;
+  DoFill, WasReachable: Boolean;
+begin
+  Grid := TAocStaticGrid<Boolean>.Create(MemoryWidth, MemoryWidth, TAocGridHelper.BoolToChar);
+  Reachable := TAocStaticGrid<Boolean>.Create(MemoryWidth, MemoryWidth, TAocGridHelper.BoolToChar);
+
+  for i := 0 to FParsedInput.Count-1 do
+    Grid.SetData(FParsedInput[i], True);
+
+  FloodFill(TPosition.Create(0,0));
+
+  for i := FParsedInput.Count-1 downto 0 do
+  begin
+    CurrentPos := FParsedInput[i];
+
+    Grid.SetData(CurrentPos, False);
+
+    DoFill := False;
+    for Dir in [north, East, South, West] do
+    begin
+      if Reachable.TryGetValue(CurrentPos.Clone.ApplyDirection(dir), WasReachable) and WasReachable then
+      begin
+        DoFill := True;
+        Break;
+      end;
+    end;
+
+    if DoFill then
+      FloodFill(CurrentPos);
+
+    if Reachable.GetValue(70,70) then
+    begin
+      Result := FInput[i];
+      Break;
+    end;
+  end;
+
+  Grid.Free;
+  Reachable.Free;
+end;
+{$ENDREGION}
+
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -1843,7 +2001,7 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16,TAdventOfCodeDay17
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18
   ]);
 
 end.
