@@ -199,6 +199,15 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay19 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -1961,7 +1970,7 @@ begin
     begin
       if Reachable.TryGetValue(CurrentPos.Clone.ApplyDirection(dir), WasReachable) and WasReachable then
       begin
-        DoFill := True;
+        DoFill := True; 
         Break;
       end;
     end;
@@ -1980,7 +1989,83 @@ begin
   Reachable.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay19'}
+procedure TAdventOfCodeDay19.BeforeSolve;
+var
+  AvailableTowels: TDictionary<String,integer>;
+  cache: TDictionary<integer,int64>;
 
+  function IsPaternPossible(Const aIdx, aPaternLength: Integer; const aPatern: string): int64;
+  var
+    ShouldCheck: Boolean;
+    i: integer;
+    available: TPair<string,Integer>;
+  begin
+    if aIdx = aPaternLength then
+      Exit(1);
+
+    if cache.TryGetValue(aIdx, Result) then
+      Exit;
+
+    Result := 0;
+    for available in AvailableTowels do
+    begin
+      if available.Value > (aPaternLength - aIdx) then
+        Continue;
+
+      ShouldCheck := True;
+      for i := 1 to available.Value do
+      begin
+        ShouldCheck := available.key[i] = aPatern[aIdx + i];
+        if not ShouldCheck then
+          Break;
+      end;
+
+      if ShouldCheck then
+        inc(Result, IsPaternPossible(aIdx + available.Value, aPaternLength, aPatern));
+    end;
+
+    cache.Add(aIdx, Result);
+  end;
+
+var
+  i, WaysToMakeTowel: int64;
+  s: string;
+  split: TStringDynArray;
+begin
+  AvailableTowels := TDictionary<string,integer>.Create;
+  split := SplitString(FInput[0], ',');
+  for s in split do
+    AvailableTowels.Add(s.Trim, Length(s.Trim));
+
+  cache := TDictionary<integer,int64>.Create;
+
+  SolutionA := 0;
+  SolutionB := 0;
+  for i := 2 to FInput.Count -1 do
+  begin
+    WaysToMakeTowel := IsPaternPossible(0, Length(FInput[i]), FInput[i]);
+    Inc(SolutionB, WaysToMakeTowel);
+    if WaysToMakeTowel > 0 then
+      Inc(SolutionA);
+    Writeln(cache.Count);
+    cache.Clear;
+  end;
+
+  cache.Free;
+  AvailableTowels.Free;
+end;
+
+function TAdventOfCodeDay19.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay19.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -2001,7 +2086,7 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19
   ]);
 
 end.
