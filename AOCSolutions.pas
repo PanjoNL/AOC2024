@@ -290,7 +290,7 @@ begin
 
     SetLength(Report, Length(split));
     for i := 0 to Length(split)-1 do
-      Report[i] := Split[i].ToInteger; 
+      Report[i] := Split[i].ToInteger;
 
     if (not TolerateBadLevel) and IsReportSave(Report) then
       Result := Result + 1
@@ -1664,7 +1664,7 @@ var
 begin
   Grid := TAocGridHelper.CreateCharGrid(FInput);
   Paths := TObjectList<TReindeerMazePath>.Create(True);
-  Seen := TAocStaticGrid<TPair<integer, TReindeerMazePath>>.Create(Grid.MaxX, Grid.MaxY);;
+  Seen := TAocDynamicGrid<TPair<integer, TReindeerMazePath>>.Create(Grid.MaxX, Grid.MaxY);;
   SeenPositions := TDictionary<int64,boolean>.Create;
   Queue := PriorityQueue<Integer, TReindeerMazePath>.Create();
 
@@ -1688,7 +1688,7 @@ begin
       Break;
 
     CanRotate := True;
-    Best := Seen.GetValue(Work.Position);
+    Seen.TryGetValue(Work.Position, Best);
     if (Best.Key = 0) then // never been here
     begin
       Best.Key := Work.Score;
@@ -1970,7 +1970,7 @@ begin
     begin
       if Reachable.TryGetValue(CurrentPos.Clone.ApplyDirection(dir), WasReachable) and WasReachable then
       begin
-        DoFill := True; 
+        DoFill := True;
         Break;
       end;
     end;
@@ -1992,14 +1992,13 @@ end;
 {$REGION 'TAdventOfCodeDay19'}
 procedure TAdventOfCodeDay19.BeforeSolve;
 var
-  AvailableTowels: TDictionary<String,integer>;
+  AvailableTowels: TDictionary<String,boolean>;
   cache: TDictionary<integer,int64>;
+  MaxTowelLength: integer;
 
   function IsPaternPossible(Const aIdx, aPaternLength: Integer; const aPatern: string): int64;
   var
-    ShouldCheck: Boolean;
     i: integer;
-    available: TPair<string,Integer>;
   begin
     if aIdx = aPaternLength then
       Exit(1);
@@ -2007,23 +2006,9 @@ var
     if cache.TryGetValue(aIdx, Result) then
       Exit;
 
-    Result := 0;
-    for available in AvailableTowels do
-    begin
-      if available.Value > (aPaternLength - aIdx) then
-        Continue;
-
-      ShouldCheck := True;
-      for i := 1 to available.Value do
-      begin
-        ShouldCheck := available.key[i] = aPatern[aIdx + i];
-        if not ShouldCheck then
-          Break;
-      end;
-
-      if ShouldCheck then
-        inc(Result, IsPaternPossible(aIdx + available.Value, aPaternLength, aPatern));
-    end;
+    for i := 1 to Max(MaxTowelLength, aPaternLength - aIdx) do
+      if AvailableTowels.ContainsKey(aPatern.Substring(aIdx, i)) then
+        inc(Result, IsPaternPossible(aIdx + i, aPaternLength, aPatern));
 
     cache.Add(aIdx, Result);
   end;
@@ -2033,10 +2018,15 @@ var
   s: string;
   split: TStringDynArray;
 begin
-  AvailableTowels := TDictionary<string,integer>.Create;
+  AvailableTowels := TDictionary<string,boolean>.Create;
+  MaxTowelLength := 1;
   split := SplitString(FInput[0], ',');
+
   for s in split do
-    AvailableTowels.Add(s.Trim, Length(s.Trim));
+  begin
+    AvailableTowels.Add(s.Trim, true);
+    MaxTowelLength := Max(MaxTowelLength, Length(s.Trim));
+  end;
 
   cache := TDictionary<integer,int64>.Create;
 
@@ -2048,7 +2038,6 @@ begin
     Inc(SolutionB, WaysToMakeTowel);
     if WaysToMakeTowel > 0 then
       Inc(SolutionA);
-    Writeln(cache.Count);
     cache.Clear;
   end;
 
