@@ -208,6 +208,19 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay20 = class(TAdventOfCode)
+  private
+    FTimes: TAocGrid<Integer>;
+    FTrackPieces: TList<TPosition>;
+    function CalcNoOfCheaths(aCheatTime: integer): integer;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -2055,6 +2068,93 @@ begin
   Result := SolutionB;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay20'}
+procedure TAdventOfCodeDay20.BeforeSolve;
+var
+  Racetrack: TAocGrid<Char>;
+  Pair: TPair<TPosition,Char>;
+  StartPosition, EndPosition: TPosition;
+  CurrentFacing: TAOCDirection;
+  CurrentTime, i: integer;
+begin
+  Racetrack := TAocGridHelper.CreateCharGrid(FInput);
+  FTimes := TAocStaticGrid<Integer>.Create(Racetrack.MaxX, Racetrack.MaxY);
+  FTrackPieces := TList<TPosition>.Create;;
+
+  for Pair in Racetrack do
+  begin
+    if Pair.Value = 'E' then
+      StartPosition := Pair.Key.Clone;
+    if Pair.Value = 'S' then
+      EndPosition := Pair.Key.Clone;
+  end;
+
+  FTimes.SetData(StartPosition, 0);
+  FTrackPieces.Add(StartPosition);
+  CurrentFacing := North;
+  while Racetrack.GetValue(StartPosition.Clone.ApplyDirection(CurrentFacing)) = '#' do
+    CurrentFacing := RotateDirection(CurrentFacing, 1);
+
+  CurrentTime := 0;
+  while true do
+  begin
+    StartPosition := StartPosition.ApplyDirection(CurrentFacing);
+    Inc(CurrentTime);
+    FTimes.SetData(StartPosition, CurrentTime);
+    FTrackPieces.Add(StartPosition);
+    if StartPosition.CacheKey = EndPosition.CacheKey  then
+      Break;
+
+    for i := -1 to 1 do
+      if Racetrack.GetValue(StartPosition.Clone.ApplyDirection(RotateDirection(CurrentFacing, i))) <> '#' then
+      begin
+        CurrentFacing := RotateDirection(CurrentFacing, i);
+        break;
+      end;
+  end;
+
+  Racetrack.Free;
+end;
+
+procedure TAdventOfCodeDay20.AfterSolve;
+begin
+  FTimes.Free;
+  FTrackPieces.Free;
+end;
+
+function TAdventOfCodeDay20.CalcNoOfCheaths(aCheatTime: integer): integer;
+var
+  x,y, TimeSaved, CurrentTime, CheatTime: Integer;
+  Position, Next: TPosition;
+begin
+  Result := 0;
+  for Position in FTrackPieces do
+  begin
+    CurrentTime := FTimes.GetValue(Position);
+    for x := -aCheatTime to aCheatTime do
+      for y := abs(x)-aCheatTime to aCheatTime-abs(x) do
+      begin
+        Next := Position.Clone.AddDelta(x, y);
+        if FTimes.TryGetValue(Next, CheatTime) then
+        begin
+          TimeSaved := CheatTime - CurrentTime - abs(x) - abs(y);
+          if TimeSaved >= 100 then
+            Inc(Result);
+        end
+      end;
+  end;
+end;
+
+function TAdventOfCodeDay20.SolveA: Variant;
+begin
+  Result := CalcNoOfCheaths(2);
+end;
+
+function TAdventOfCodeDay20.SolveB: Variant;
+begin
+  Result := CalcNoOfCheaths(20);
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -2075,7 +2175,7 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20
   ]);
 
 end.

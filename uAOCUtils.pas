@@ -403,7 +403,7 @@ end;
 
 function RotateDirection(aDirection: TAOCDirection; aAmmount: integer): TAOCDirection;
 begin
-  Result := TAOCDirection((aAmmount + Ord(aDirection)) mod 4);
+  Result := TAOCDirection((aAmmount + Ord(aDirection)+4) mod 4);
 end;
 
 function IsNumber(aNumber: string): Boolean;
