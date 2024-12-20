@@ -41,7 +41,7 @@ type
     procedure PrintToDebug;
     procedure SetData(aPosition: TPosition; aValue: TValue); overload; virtual; abstract;
     procedure SetData(aX, aY: integer; aValue: TValue); overload;
-    function TryGetValue(aX, aY: integer; out aValue: TValue): boolean; overload;
+    function TryGetValue(aX, aY: integer; out aValue: TValue): boolean; overload; virtual;
     function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; virtual; abstract;
     function GetValue(aX, aY: integer): TValue; overload;
     function GetValue(aPosition: TPosition): TValue; overload; virtual; abstract;
@@ -54,7 +54,7 @@ type
   TAocStaticGrid<TValue> = class(TAocGrid<TValue>)
   private
     FData: Array of TValue;
-    function KeyIndex(aPosition: TPosition): integer;
+    function KeyIndex(const aX, aY: integer): integer; inline;
   protected
     procedure CreateDataHolder; override;
   public
@@ -62,6 +62,8 @@ type
 
     procedure SetData(aPosition: TPosition; aValue: TValue); override;
     function TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean; overload; override;
+    function TryGetValue(aX, aY: integer; out aValue: TValue): boolean; overload; override;
+    function GetValue(aX, aY: integer): TValue; overload; inline;
     function GetValue(aPosition: TPosition): TValue; overload; override;
   end;
 
@@ -250,28 +252,39 @@ begin
   inherited;
 end;
 
-function TAocStaticGrid<TValue>.GetValue(aPosition: TPosition): TValue;
+function TAocStaticGrid<TValue>.GetValue(aX, aY: integer): TValue;
 begin
-  Result := FData[KeyIndex(aPosition)];
+  Result := FData[KeyIndex(aX, aY)];
 end;
 
-function TAocStaticGrid<TValue>.KeyIndex(aPosition: TPosition): integer;
+function TAocStaticGrid<TValue>.GetValue(aPosition: TPosition): TValue;
 begin
-  Result := aPosition.X * MaxX + aPosition.Y;
+  Result := GetValue(aPosition.x, aPosition.y);
+end;
+
+function TAocStaticGrid<TValue>.KeyIndex(const aX, aY: integer): integer;
+begin
+  Result := aX * MaxX + aY;
 end;
 
 procedure TAocStaticGrid<TValue>.SetData(aPosition: TPosition; aValue: TValue);
 begin
-  FData[KeyIndex(aPosition)] := aValue;
+  FData[KeyIndex(aPosition.x, aPosition.Y)] := aValue;
+end;
+
+function TAocStaticGrid<TValue>.TryGetValue(aX, aY: integer; out aValue: TValue): boolean;
+begin
+  Result := InRange(aX, 0, MaxX-1) and InRange(aY, 0, MaxY-1);
+  if Result then
+    aValue := FData[KeyIndex(aX, aY)]
+  else
+    aValue := Default(TValue);
 end;
 
 function TAocStaticGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
 begin
-  Result := InRange(aPosition.X, 0, MaxX-1) and InRange(aPosition.Y, 0, MaxY-1);
-  if Result then
-    aValue := GetValue(aPosition)
-  else
-    aValue := Default(TValue);
+  Result := TryGetValue(aPosition.x, aPosition.y, aValue)
+
 end;
 
 { TAocDynamicGrid<TValue> }

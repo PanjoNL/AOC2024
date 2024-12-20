@@ -60,7 +60,7 @@ function OccurrencesOfChar(const S: string; const C: string): integer;
 function BitStringToInt(Const aBit: string): int64;
 function IntToBits(aInt: int64): string;
 function CountTrueBits(aInt: integer): integer;
-function InRange(const aTarget, aLeft, aRight: int64): boolean;
+function InRange(const aTarget, aLeft, aRight: int64): boolean; inline;
 function RotateDirection(aDirection: TAOCDirection; aAmmount: integer): TAOCDirection;
 function IsNumber(aNumber: string): Boolean;
 function DeleteRepeatedSpaces(const s: string):string;

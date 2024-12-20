@@ -602,7 +602,7 @@ end;
 
 procedure TAdventOfCodeDay6.BeforeSolve;
 var
-  Grid: TAocGrid<TGridElement>;
+  Grid: TAocStaticGrid<TGridElement>;
 
   function _CreateTask(aGaurdPosition, aBlock: TPosition; aGaurdFacing: TAOCDirection): ITask;
   begin
@@ -2125,7 +2125,7 @@ end;
 function TAdventOfCodeDay20.CalcNoOfCheaths(aCheatTime: integer): integer;
 var
   x,y, TimeSaved, CurrentTime, CheatTime: Integer;
-  Position, Next: TPosition;
+  Position: TPosition;
 begin
   Result := 0;
   for Position in FTrackPieces do
@@ -2134,8 +2134,7 @@ begin
     for x := -aCheatTime to aCheatTime do
       for y := abs(x)-aCheatTime to aCheatTime-abs(x) do
       begin
-        Next := Position.Clone.AddDelta(x, y);
-        if FTimes.TryGetValue(Next, CheatTime) then
+        if FTimes.TryGetValue(Position.x+x, Position.y+y, CheatTime) then
         begin
           TimeSaved := CheatTime - CurrentTime - abs(x) - abs(y);
           if TimeSaved >= 100 then
