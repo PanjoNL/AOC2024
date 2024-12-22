@@ -220,6 +220,21 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay21 = class(TAdventOfCode)
+  private
+  protected
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+  TAdventOfCodeDay22 = class(TAdventOfCode)
+  private
+    SolutionA, SolutionB: int64;
+  protected
+    procedure BeforeSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
 
   TAdventOfCodeDay = class(TAdventOfCode)
   private
@@ -2124,7 +2139,7 @@ end;
 
 function TAdventOfCodeDay20.CalcNoOfCheaths(aCheatTime: integer): integer;
 var
-  x,y, TimeSaved, CurrentTime, CheatTime: Integer;
+  x,y,TimeSaved, CurrentTime, CheatTime: Integer;
   Position: TPosition;
 begin
   Result := 0;
@@ -2154,6 +2169,85 @@ begin
   Result := CalcNoOfCheaths(20);
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay21'}
+function TAdventOfCodeDay21.SolveA: Variant;
+begin
+  Result := Null;
+end;
+
+function TAdventOfCodeDay21.SolveB: Variant;
+begin
+  Result := null;
+end;
+{$ENDREGION}
+{$REGION 'TAdventOfCodeDay22'}
+procedure TAdventOfCodeDay22.BeforeSolve;
+
+  function Mix(a, b: int64): int64; inline;
+  begin
+    Result := a xor b;
+  end;
+
+  function Prune(aValue: int64): int64; inline;
+  begin
+    Result := aValue and (16777216 - 1)
+  end;
+
+var
+  s: string;
+  Round, Secret: int64;
+  TotalBananas, BuyerBananas: TDictionary<integer,integer>;
+  Pair: TPair<integer,integer>;
+  PrevDigit, CurrentDigit, sequence, BananaCount: Integer;
+begin
+  TotalBananas := TDictionary<integer,integer>.Create(2000);
+  BuyerBananas := TDictionary<integer,integer>.Create(2000);
+  SolutionA := 0;
+  SolutionB := 0;
+
+  for s in FInput do
+  begin
+    Secret := s.ToInt64;
+    PrevDigit := Secret mod 10;
+    BuyerBananas.Clear;
+    sequence := 0;
+
+    for Round := 1 to 2000 do
+    begin
+      Secret := Prune(Mix(Secret, Secret shl 6));
+      Secret := Prune(Mix(Secret, secret shr 5));
+      Secret := Prune(Mix(Secret, Secret shl 11));
+
+      CurrentDigit := Secret mod 10;
+
+      sequence := (sequence shl 8) + CurrentDigit - PrevDigit + 10;
+      if (round >= 4) and (CurrentDigit > 0) then
+        BuyerBananas.TryAdd(sequence, CurrentDigit);
+      PrevDigit := CurrentDigit;
+    end;
+
+    Inc(SolutionA, Secret);
+    for Pair in BuyerBananas do
+    begin
+      TotalBananas.TryGetValue(Pair.Key, BananaCount);
+      Inc(BananaCount, Pair.Value);
+      TotalBananas.AddOrSetValue(Pair.Key, BananaCount);
+      SolutionB := Max(SolutionB, BananaCount);
+    end;
+  end;
+end;
+
+function TAdventOfCodeDay22.SolveA: Variant;
+begin
+  Result := SolutionA;
+end;
+
+function TAdventOfCodeDay22.SolveB: Variant;
+begin
+  Result := SolutionB;
+end;
+{$ENDREGION}
+
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -2174,7 +2268,9 @@ RegisterClasses([
   TAdventOfCodeDay1, TAdventOfCodeDay2, TAdventOfCodeDay3, TAdventOfCodeDay4, TAdventOfCodeDay5,
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
-  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20
+  TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
+  TAdventOfCodeDay21,
+  TAdventOfCodeDay22
   ]);
 
 end.

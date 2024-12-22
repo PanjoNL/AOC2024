@@ -8,7 +8,7 @@ uses
 
 type
   TAdventOfCodeRef = class of TAdventOfCode;
-  TAOCDirection = (North = 0, East, South, West);
+  TAOCDirection = (North = 0, East, South, West, None);
   TAOCDirections = set of TAOCDirection;
 
 type AOCUtils = class
@@ -33,13 +33,13 @@ type
     x: int64;
     y: int64;
     class function Create(const aX, aY: int64): TPosition; static;
-    function AddDelta(const aX, aY: int64): TPosition;
-    function Equals(Const Other: TPosition): Boolean;
-    function Clone: TPosition;
-    function ApplyDirection(Const aDirection: TAOCDirection; aDelta: Int64 = 1): TPosition;
-    function CacheKey: Int64;
+    function AddDelta(const aX, aY: int64): TPosition; inline;
+    function Equals(Const Other: TPosition): Boolean; inline;
+    function Clone: TPosition; inline;
+    function ApplyDirection(Const aDirection: TAOCDirection; aDelta: Int64 = 1): TPosition; inline;
+    function CacheKey: Int64; inline;
   private
-    function SetIt(const aX, aY: int64): TPosition;
+    function SetIt(const aX, aY: int64): TPosition; inline;
   end;
 
   TPosition3 = record

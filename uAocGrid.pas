@@ -247,6 +247,11 @@ begin
   SetLength(FData, MaxX * MaxY);
 end;
 
+function TAocStaticGrid<TValue>.KeyIndex(const aX, aY: integer): integer;
+begin
+  Result := aX * MaxX + aY;
+end;
+
 destructor TAocStaticGrid<TValue>.Destroy;
 begin
   inherited;
@@ -262,11 +267,6 @@ begin
   Result := GetValue(aPosition.x, aPosition.y);
 end;
 
-function TAocStaticGrid<TValue>.KeyIndex(const aX, aY: integer): integer;
-begin
-  Result := aX * MaxX + aY;
-end;
-
 procedure TAocStaticGrid<TValue>.SetData(aPosition: TPosition; aValue: TValue);
 begin
   FData[KeyIndex(aPosition.x, aPosition.Y)] := aValue;
@@ -276,7 +276,7 @@ function TAocStaticGrid<TValue>.TryGetValue(aX, aY: integer; out aValue: TValue)
 begin
   Result := InRange(aX, 0, MaxX-1) and InRange(aY, 0, MaxY-1);
   if Result then
-    aValue := FData[KeyIndex(aX, aY)]
+    aValue := GetValue(aX, aY)
   else
     aValue := Default(TValue);
 end;
@@ -284,7 +284,6 @@ end;
 function TAocStaticGrid<TValue>.TryGetValue(aPosition: TPosition; out aValue: TValue): Boolean;
 begin
   Result := TryGetValue(aPosition.x, aPosition.y, aValue)
-
 end;
 
 { TAocDynamicGrid<TValue> }
