@@ -2189,7 +2189,7 @@ var ButtonPresses: TDictionary<string, int64>;
      raise Exception.Create('Button not found ' + aButton);
   end;
 
-  function New_FindPathsToDest(aPad: TAocGrid<Char>; aFrom, aTo: TPosition): TList<String>;
+  function FindPathsToDest(aPad: TAocGrid<Char>; aFrom, aTo: TPosition): TList<String>;
   Const
     HorzDirs: Array[-1..1] of Char = ('<', '.', '>');
     VertDirs: Array[-1..1] of Char = ('^', '.', 'v');
@@ -2313,7 +2313,7 @@ begin
   for ButtonFrom in [Up, Right, Down, Left, Action]  do
     for ButtonTo in [Up, Right, Down, Left, Action]  do
     begin
-      DirectionalPaths := New_FindPathsToDest(directionalPad, FindButtonInKeypad(directionalPad, RobotAction[ButtonFrom]), FindButtonInKeypad(directionalPad, RobotAction[ButtonTo]));
+      DirectionalPaths := FindPathsToDest(directionalPad, FindButtonInKeypad(directionalPad, RobotAction[ButtonFrom]), FindButtonInKeypad(directionalPad, RobotAction[ButtonTo]));
       PathCache.Add(RobotAction[ButtonFrom]+RobotAction[ButtonTo], DirectionalPaths);
       ButtonPresses.Add('1'+RobotAction[ButtonFrom]+RobotAction[ButtonTo], Length(DirectionalPaths.First)+ 1);
     end;
@@ -2338,7 +2338,7 @@ begin
     for i := 1 to Length(s) do
     begin
       Button := s[i];
-      NumPadPaths := New_FindPathsToDest(NumPad, FindButtonInKeypad(NumPad, PrevButton), FindButtonInKeypad(NumPad, Button));
+      NumPadPaths := FindPathsToDest(NumPad, FindButtonInKeypad(NumPad, PrevButton), FindButtonInKeypad(NumPad, Button));
       Inc(StepsA, PickBestPath(NumPadPaths, 3));
       Inc(StepsB, PickBestPath(NumPadPaths, 26));
       NumPadPaths.Free;
@@ -2381,21 +2381,21 @@ procedure TAdventOfCodeDay22.BeforeSolve;
 var
   s: string;
   Round, Secret: int64;
-  TotalBananas, BuyerBananas: TDictionary<integer,integer>;
-  Pair: TPair<integer,integer>;
   PrevDigit, CurrentDigit, sequence, BananaCount: Integer;
+  Seen: array of Boolean;
+  TotalBananas: array of integer;
 begin
-  TotalBananas := TDictionary<integer,integer>.Create(2000);
-  BuyerBananas := TDictionary<integer,integer>.Create(2000);
   SolutionA := 0;
   SolutionB := 0;
+  SetLength(TotalBananas, 130321);
 
   for s in FInput do
   begin
     Secret := s.ToInt64;
     PrevDigit := Secret mod 10;
-    BuyerBananas.Clear;
     sequence := 0;
+    SetLength(Seen, 0);
+    SetLength(Seen, 130321);
 
     for Round := 1 to 2000 do
     begin
@@ -2405,20 +2405,20 @@ begin
 
       CurrentDigit := Secret mod 10;
 
-      sequence := (sequence shl 8) + CurrentDigit - PrevDigit + 10;
-      if (round >= 4) and (CurrentDigit > 0) then
-        BuyerBananas.TryAdd(sequence, CurrentDigit);
+      sequence :=  (19 * sequence + CurrentDigit - PrevDigit + 9) mod 130321 ;
+      if (round >= 4) and (not Seen[sequence]) then
+      begin
+        Seen[sequence] := True;
+        BananaCount := TotalBananas[sequence];
+        Inc(BananaCount, CurrentDigit);
+        TotalBananas[sequence] := BananaCount;
+        SolutionB := Max(SolutionB, BananaCount);
+      end;
+
       PrevDigit := CurrentDigit;
     end;
 
     Inc(SolutionA, Secret);
-    for Pair in BuyerBananas do
-    begin
-      TotalBananas.TryGetValue(Pair.Key, BananaCount);
-      Inc(BananaCount, Pair.Value);
-      TotalBananas.AddOrSetValue(Pair.Key, BananaCount);
-      SolutionB := Max(SolutionB, BananaCount);
-    end;
   end;
 end;
 
