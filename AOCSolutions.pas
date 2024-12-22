@@ -222,7 +222,9 @@ type
 
   TAdventOfCodeDay21 = class(TAdventOfCode)
   private
+    SolutionA, SolutionB: int64;
   protected
+    procedure BeforeSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -1692,7 +1694,7 @@ var
 begin
   Grid := TAocGridHelper.CreateCharGrid(FInput);
   Paths := TObjectList<TReindeerMazePath>.Create(True);
-  Seen := TAocDynamicGrid<TPair<integer, TReindeerMazePath>>.Create(Grid.MaxX, Grid.MaxY);;
+  Seen := TAocStaticGrid<TPair<integer, TReindeerMazePath>>.Create(Grid.MaxX, Grid.MaxY);;
   SeenPositions := TDictionary<int64,boolean>.Create;
   Queue := PriorityQueue<Integer, TReindeerMazePath>.Create();
 
@@ -2170,14 +2172,197 @@ begin
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay21'}
+procedure TAdventOfCodeDay21.BeforeSolve;
+type TRobotAction = (Up, Right, Down, Left, Action);
+const RobotAction: array[TRobotAction] of char = ('^', '>', 'v', '<', 'A');
+var ButtonPresses: TDictionary<string, int64>;
+
+  function FindButtonInKeypad(aKeyPad: TAocGrid<Char>; aButton: char): TPosition;
+  var
+    x,y: integer;
+    Button: char;
+  begin
+     for x := 0 to aKeyPad.MaxX do
+      for y := 0 to aKeyPad.MaxY do
+        if aKeyPad.TryGetValue(x,y,Button) and (Button = aButton) then
+          Exit(TPosition.Create(x,y));
+     raise Exception.Create('Button not found ' + aButton);
+  end;
+
+  function New_FindPathsToDest(aPad: TAocGrid<Char>; aFrom, aTo: TPosition): TList<String>;
+  Const
+    HorzDirs: Array[-1..1] of Char = ('<', '.', '>');
+    VertDirs: Array[-1..1] of Char = ('^', '.', 'v');
+  var
+    HorzDir, VertDir: integer;
+    tmpFrom: TPosition;
+    Path: string;
+    Valid: Boolean;
+    tmpChar: Char;
+  begin
+    Result := TList<string>.Create;
+
+    HorzDir := Sign(aTo.X - aFrom.x);
+    VertDir := Sign(aTo.Y - aFrom.y);
+
+    Path := '';
+    Valid := true;
+    tmpFrom := aFrom.Clone;
+    while tmpFrom.x <> aTo.x do
+    begin
+      Path := Path + HorzDirs[HorzDir];
+      tmpFrom.x := tmpFrom.x + HorzDir;
+      if aPad.TryGetValue(tmpFrom, tmpChar) and (tmpChar = 'x') then
+        Valid := false;
+    end;
+
+    while tmpFrom.y <> aTo.y do
+    begin
+      Path := Path + VertDirs[VertDir];
+      tmpFrom.y := tmpFrom.y + VertDir;
+      if aPad.TryGetValue(tmpFrom, tmpChar) and (tmpChar = 'x') then
+        Valid := false;
+    end;
+
+    if Valid then
+      Result.Add(Path);
+
+    Path := '';
+    Valid := true;
+    tmpFrom := aFrom.Clone;
+
+    while tmpFrom.y <> aTo.y do
+    begin
+      Path := Path + VertDirs[VertDir];
+      tmpFrom.y := tmpFrom.y + VertDir;
+      if aPad.TryGetValue(tmpFrom, tmpChar) and (tmpChar = 'x') then
+        Valid := false;
+    end;
+
+    while tmpFrom.x <> aTo.x do
+    begin
+      Path := Path + HorzDirs[HorzDir];
+      tmpFrom.x := tmpFrom.x + HorzDir;
+      if aPad.TryGetValue(tmpFrom, tmpChar) and (tmpChar = 'x') then
+        Valid := false;
+    end;
+
+    if Valid and not Result.Contains(Path) then
+      Result.Add(Path);
+  end;
+
+  function PickBestPath(aPaths: TList<string>; aRobotLevel: integer): int64;
+  var
+    Path: string;
+    PathSteps, ButtonIndex: int64;
+    PrevButton, Button: Char;
+  begin
+    Result := MaxInt64;
+    for Path in aPaths do
+    begin
+      PathSteps := 0;
+      PrevButton := 'A';
+
+      for ButtonIndex := 1 to Length(Path) do
+      begin
+        Button := Path[ButtonIndex];
+        PathSteps := PathSteps + ButtonPresses[(aRobotLevel-1).ToString+PrevButton+Button];
+        PrevButton := Button;
+      end;
+
+      PathSteps := PathSteps + ButtonPresses[(aRobotLevel-1).ToString+PrevButton + 'A'];
+      Result := Min(Result, PathSteps);
+    end;
+  end;
+
+var
+  s: string;
+  StepsA, StepsB, CodePart: int64;
+  PrevButton, Button: Char;
+  RobotCount, i: Integer;
+  NumPad, directionalPad: TAocGrid<Char>;
+  NumPadPaths, DirectionalPaths: TList<string>;
+  ButtonFrom, ButtonTo: TRobotAction;
+  PathCache: TDictionary<string,TList<String>>;
+begin
+  NumPad := TAocStaticGrid<Char>.Create(3, 4, TAocGridHelper.CharToChar);
+  NumPad.SetData(0,0, '7');
+  NumPad.SetData(1,0, '8');
+  NumPad.SetData(2,0, '9');
+  NumPad.SetData(0,1, '4');
+  NumPad.SetData(1,1, '5');
+  NumPad.SetData(2,1, '6');
+  NumPad.SetData(0,2, '1');
+  NumPad.SetData(1,2, '2');
+  NumPad.SetData(2,2, '3');
+  NumPad.SetData(0,3, 'x');
+  NumPad.SetData(1,3, '0');
+  NumPad.SetData(2,3, 'A');
+
+  DirectionalPad := TAocStaticGrid<Char>.Create(3, 2, TAocGridHelper.CharToChar);
+  DirectionalPad.SetData(0,0, 'x');
+  DirectionalPad.SetData(1,0, '^');
+  DirectionalPad.SetData(2,0, 'A');
+  DirectionalPad.SetData(0,1, '<');
+  DirectionalPad.SetData(1,1, 'v');
+  DirectionalPad.SetData(2,1, '>');
+
+  PathCache := TObjectDictionary<string,TList<String>>.Create([doOwnsValues]);
+  ButtonPresses := TDictionary<string, int64>.Create;
+
+  for ButtonFrom in [Up, Right, Down, Left, Action]  do
+    for ButtonTo in [Up, Right, Down, Left, Action]  do
+    begin
+      DirectionalPaths := New_FindPathsToDest(directionalPad, FindButtonInKeypad(directionalPad, RobotAction[ButtonFrom]), FindButtonInKeypad(directionalPad, RobotAction[ButtonTo]));
+      PathCache.Add(RobotAction[ButtonFrom]+RobotAction[ButtonTo], DirectionalPaths);
+      ButtonPresses.Add('1'+RobotAction[ButtonFrom]+RobotAction[ButtonTo], Length(DirectionalPaths.First)+ 1);
+    end;
+
+  for RobotCount := 2 to 25 do
+    for ButtonFrom in [Up, Right, Down, Left, Action]  do
+      for ButtonTo in [Up, Right, Down, Left, Action]  do
+      begin
+        DirectionalPaths := PathCache[RobotAction[ButtonFrom]+RobotAction[ButtonTo]];
+        ButtonPresses.Add(RobotCount.ToString+RobotAction[ButtonFrom]+RobotAction[ButtonTo], PickBestPath(DirectionalPaths, RobotCount));
+      end;
+
+  SolutionA := 0;
+  SolutionB := 0;
+  for s in FInput do
+  begin
+    PrevButton := 'A';
+    StepsA := 0;
+    StepsB := 0;
+    CodePart := StringReplace(s, 'A', '', [rfReplaceAll]).ToInt64;
+
+    for i := 1 to Length(s) do
+    begin
+      Button := s[i];
+      NumPadPaths := New_FindPathsToDest(NumPad, FindButtonInKeypad(NumPad, PrevButton), FindButtonInKeypad(NumPad, Button));
+      Inc(StepsA, PickBestPath(NumPadPaths, 3));
+      Inc(StepsB, PickBestPath(NumPadPaths, 26));
+      NumPadPaths.Free;
+      PrevButton := Button;
+    end;
+
+    Inc(SolutionA, StepsA * CodePart);
+    Inc(SolutionB, StepsB * CodePart);
+  end;
+
+  directionalPad.Free;
+  NumPad.Free;
+  PathCache.Free;
+  ButtonPresses.Free;
+end;
+
 function TAdventOfCodeDay21.SolveA: Variant;
 begin
-  Result := Null;
+  Result := SolutionA;
 end;
 
 function TAdventOfCodeDay21.SolveB: Variant;
 begin
-  Result := null;
+  Result := SolutionB;
 end;
 {$ENDREGION}
 {$REGION 'TAdventOfCodeDay22'}
@@ -2269,8 +2454,7 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay21,
-  TAdventOfCodeDay22
+  TAdventOfCodeDay2, TAdventOfCodeDay22
   ]);
 
 end.

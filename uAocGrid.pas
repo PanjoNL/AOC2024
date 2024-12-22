@@ -249,7 +249,7 @@ end;
 
 function TAocStaticGrid<TValue>.KeyIndex(const aX, aY: integer): integer;
 begin
-  Result := aX * MaxX + aY;
+  Result := aX * MaxY + aY;
 end;
 
 destructor TAocStaticGrid<TValue>.Destroy;
