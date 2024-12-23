@@ -238,6 +238,16 @@ type
     function SolveB: Variant; override;
   end;
 
+  TAdventOfCodeDay23 = class(TAdventOfCode)
+  private
+    FComputers: TDictionary<String, TList<String>>;    
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;    
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
   TAdventOfCodeDay = class(TAdventOfCode)
   private
   protected
@@ -452,7 +462,6 @@ begin
   SolutionB := 0;
 
   for Pair in Grid do
-
   begin
     if Pair.Value = 'X' then
       for Dirs in OffSetsA do
@@ -2432,6 +2441,146 @@ begin
   Result := SolutionB;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay23'}
+procedure TAdventOfCodeDay23.BeforeSolve;
+
+  procedure AddComputerToList(aComputer1, aComputer2: string);
+  var 
+    List: TList<String>;
+  begin
+    if not FComputers.TryGetValue(aComputer1, List) then
+    begin
+      List := TList<string>.create;
+      FComputers.Add(aComputer1, List);
+    end;
+    List.Add(aComputer2);  
+  end;
+
+
+var 
+  s, computer1, computer2: string;
+  split: TStringDynArray; 
+begin
+  FComputers := TObjectDictionary<string,TList<string>>.Create([doOwnsValues]);
+  
+  for s in FInput do
+  begin
+    split := SplitString(s, '-');
+    computer1 := split[0];
+    computer2 := split[1];
+    AddComputerToList(computer1, computer2);
+    AddComputerToList(computer2, computer1);
+  end;
+end;
+
+procedure TAdventOfCodeDay23.AfterSolve;
+begin
+  FComputers.Free;
+end;
+
+function TAdventOfCodeDay23.SolveA: Variant;
+var
+  idxComputer2, idxComputer3: Integer;
+  Computer1, Computer2, Computer3: string;
+  Seen: TDictionary<string,boolean>;
+  Pair: TPair<string,TList<string>>;
+  sortList: TStringList;
+begin
+  sortList := TStringList.Create;
+  sortList.Sorted := True;
+  sortList.Delimiter := ',';
+
+  Seen := TDictionary<String,boolean>.Create;
+  for Pair in FComputers do
+  begin
+    Computer1 := Pair.Key;
+    if not Computer1.StartsWith('t') then
+      Continue;
+    
+    for idxComputer2 := 0 to Pair.Value.Count -2 do
+    begin
+      Computer2 := Pair.Value[idxComputer2];
+      for idxComputer3 := idxComputer2 +1 to Pair.Value.Count -1 do
+      begin
+        Computer3 := Pair.Value[idxComputer3];
+      
+        if not FComputers[Computer2].Contains(Computer3) then
+          Continue;
+
+        sortList.Clear;
+        sortList.Add(Computer1);
+        sortList.Add(Computer2);
+        sortList.Add(Computer3);
+        Seen.AddOrSetValue(sortList.DelimitedText, true);
+      end;
+    end;
+  end;
+
+  Result := Seen.Count;
+
+  Seen.Free;
+  sortList.Free;
+end;
+
+function TAdventOfCodeDay23.SolveB: Variant;
+var 
+  BiggestCluster: TStringList;
+    
+    procedure BuildCluster(aComputerList, aCluster: TList<string>; aIdx: Integer = 0);
+    var
+      ToAdd, s: string;
+      ToAddComputer: TList<string>;
+    begin
+      if BiggestCluster.Count >= (aCluster.Count + aComputerList.Count - aIdx)  then
+        Exit; 
+      
+      if aIdx = aComputerList.Count then
+      begin
+        if aCluster.Count > BiggestCluster.Count then
+        begin
+          BiggestCluster.Clear;
+          for s in aCluster do
+            BiggestCluster.Add(s);
+        end;
+
+        Exit;
+      end;
+
+      BuildCluster(aComputerList, aCluster, aIdx + 1);
+
+      ToAdd := aComputerList[aIdx];
+      ToAddComputer := FComputers[ToAdd];
+      for s in aCluster do
+        if not ToAddComputer.Contains(s) then
+          Exit;
+          
+      aCluster.Add(ToAdd);
+      BuildCluster(aComputerList, aCluster, aIdx + 1);
+      aCluster.Remove(ToAdd);
+    end;
+
+var
+  Pair: TPair<string,TList<string>>;
+  Cluster: TList<string>;
+begin
+  BiggestCluster := TStringList.Create;
+  BiggestCluster.Sorted := True;
+  BiggestCluster.Delimiter := ',';
+
+  Cluster := TList<string>.Create;
+
+  for Pair in FComputers do
+  begin
+    Cluster.Clear; 
+    Cluster.Add(Pair.Key);
+    BuildCluster(Pair.Value, Cluster);
+  end;
+
+  Result := BiggestCluster.DelimitedText;
+  Cluster.Free; 
+  BiggestCluster.Free;
+end;
+{$ENDREGION}
 
 
 {$REGION 'Placeholder'}
@@ -2454,7 +2603,7 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay2, TAdventOfCodeDay22
+  TAdventOfCodeDay2, TAdventOfCodeDay22,TAdventOfCodeDay23
   ]);
 
 end.
