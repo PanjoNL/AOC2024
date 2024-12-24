@@ -243,7 +243,29 @@ type
     FComputers: TDictionary<String, TList<String>>;    
   protected
     procedure BeforeSolve; override;
-    procedure AfterSolve; override;    
+    procedure AfterSolve; override;
+    function SolveA: Variant; override;
+    function SolveB: Variant; override;
+  end;
+
+  TOperation = (tAnd, tXor, tOr);
+  ROperation = Record
+    Adress1, Adress2, TargetAdress: string;
+    Operation: TOperation;
+    class function CreateFromString(aString: String): ROperation; static;
+    function Equals(aOperation: TOperation; Const aAdress1, aAdress2: string): Boolean;
+    function OtherAdress(Const aAddress: string): string;
+  end;
+
+  TAdventOfCodeDay24 = class(TAdventOfCode)
+  private
+    FWires: TDictionary<string, Boolean>;
+    FOperations: TDictionary<string, ROperation>;
+    function WireName(Const aPrefix: string; aIndex: integer): string;
+    function RunProgram(aWires: TDictionary<string, Boolean>): int64;
+  protected
+    procedure BeforeSolve; override;
+    procedure AfterSolve; override;
     function SolveA: Variant; override;
     function SolveB: Variant; override;
   end;
@@ -2581,7 +2603,371 @@ begin
   BiggestCluster.Free;
 end;
 {$ENDREGION}
+{$REGION 'TAdventOfCodeDay24'}
 
+{ ROperation }
+
+class function ROperation.CreateFromString(aString: string): ROperation;
+var
+  Split: TStringDynArray;
+begin
+  split := SplitString(aString, ' ');
+
+  Result.TargetAdress := split[4];
+  Result.Adress1 := split[0];
+  Result.Adress2 := split[2];
+
+  case IndexStr(Split[1], ['XOR', 'OR', 'AND']) of
+    0: Result.Operation := TOperation.tXor;
+    1: Result.Operation := TOperation.tor;
+    2: Result.Operation := TOperation.tAnd;
+  else
+    raise Exception.Create(aString);
+  end;
+end;
+
+function ROperation.Equals(aOperation: TOperation; const aAdress1, aAdress2: string): Boolean;
+begin
+  Result := False;
+  if aOperation <> Operation then
+    Exit;
+
+  if (Adress1 <> aAdress1) and (Adress2 <> aAdress1) then
+    Exit;
+
+  if (aAdress2 <> '') and (Adress1 <> aAdress2) and (Adress2 <> aAdress2) then
+    Exit;
+
+  Result := True;
+end;
+
+function ROperation.OtherAdress(const aAddress: string): string;
+begin
+  Result := Adress1;
+  if Adress2 <> aAddress then
+    Result := Adress2;
+end;
+
+procedure TAdventOfCodeDay24.BeforeSolve;
+var
+  i: Integer;
+  s: string;
+  split: TStringDynArray;
+  Operation: ROperation;
+begin
+  FWires := TDictionary<string,boolean>.Create;
+  FOperations := TDictionary<string, ROperation>.Create;
+
+  for i := 0 to FInput.Count -1 do
+  begin
+    s := FInput[i];
+    if s = '' then
+      Break;
+
+    split := SplitString(s, ': ');
+    FWires.Add(split[0], Split[2] = '1');
+  end;
+
+  for i := i+1 to FInput.Count-1 do
+  begin
+    Operation := ROperation.CreateFromString(FInput[i]);
+    FOperations.Add(Operation.TargetAdress, Operation);
+  end;
+end;
+
+procedure TAdventOfCodeDay24.AfterSolve;
+begin
+  inherited;
+  FOperations.Free;
+  FWires.Free;
+end;
+
+function TAdventOfCodeDay24.WireName(Const aPrefix: string; aIndex: integer): string;
+begin
+  Result := aPrefix;
+  if aIndex < 10 then
+    Result := Result + '0';
+  Result := Result + aIndex.ToString;
+end;
+
+function TAdventOfCodeDay24.RunProgram(aWires: TDictionary<string, Boolean>): int64;
+var
+  i: integer;
+  Value, Value1, Value2: boolean;
+  ToCalc: TQueue<ROperation>;
+  Operation: ROperation;
+begin
+  ToCalc := TQueue<ROperation>.Create;
+  for Operation in FOperations.Values do
+    ToCalc.Enqueue(Operation);
+
+  while ToCalc.Count > 0 do
+  begin
+    Operation := ToCalc.Dequeue;
+    if not aWires.TryGetValue(Operation.Adress1, Value1) or not aWires.TryGetValue(Operation.Adress2, Value2) then
+    begin
+      ToCalc.Enqueue(Operation);
+      Continue;
+    end;
+
+    Value := False;
+    case Operation.Operation of
+      tXor: Value := Value1 xor Value2;
+      tOR: Value := Value1 or Value2;
+      tAnd: Value := Value1 and Value2;
+    end;
+
+    aWires.Add(Operation.TargetAdress, Value);
+  end;
+
+  i := 0;
+  Result := 0;
+  while aWires.TryGetValue(WireName('z', i), Value) do
+  begin
+    if Value then
+      Result := Result + int64(1) shl i;
+    inc(i)
+  end;
+
+  ToCalc.Free;
+end;
+
+function TAdventOfCodeDay24.SolveA: Variant;
+begin
+  Result := RunProgram(FWires);
+end;
+
+type TOperations = set of TOperation;
+function TAdventOfCodeDay24.SolveB: Variant;
+var
+  SwappedOperations: TStringList;
+
+
+  procedure PrintOperations(aCurrentOperation: string; aDepth: Integer);
+  const
+    OperationNames: array[TOperation] of string = ('AND', 'XOR', 'OR');
+  var
+    Operation: ROperation;
+  begin
+    if (aDepth > 4) or not FOperations.TryGetValue(aCurrentOperation, Operation) then
+    begin
+      Writeln(aCurrentOperation.PadLeft(aDepth * 2, ' '), '...');
+      Exit
+    end;
+
+    Writeln(OperationNames[Operation.Operation].PadLeft(aDepth * 2, ' '), ' = ', Operation.TargetAdress);
+    PrintOperations(Operation.Adress1, aDepth + 1);
+    PrintOperations(Operation.Adress2, aDepth + 1);
+  end;
+
+  function FindOperationByParams(aOperation: TOperation; const aAdress1, aAdress2: string): ROperation;
+  var
+    Operation: ROperation;
+  begin
+    for Operation in FOperations.Values do
+      if Operation.Equals(aOperation, aAdress1, aAdress2) then
+      begin
+        Result := Operation;
+        Exit;
+      end;
+    raise Exception.Create('Operation not found');
+  end;
+
+  procedure SwapOperations(aOperation1, aOperation2: ROperation);
+  var
+    Address1, Address2: string;
+  begin
+    Address1 := aOperation1.TargetAdress;
+    Address2 := aOperation2.TargetAdress;
+
+    SwappedOperations.Add(Address1);
+    SwappedOperations.Add(Address2);
+
+    aOperation1.TargetAdress := Address2;
+    aOperation2.TargetAdress := Address1;
+
+    FOperations.AddOrSetValue(aOperation1.TargetAdress, aOperation1);
+    FOperations.AddOrSetValue(aOperation2.TargetAdress, aOperation2);
+  end;
+
+  function PickOperationByType(aOperationType: TOperations; aOperation1, aOperation2: ROperation): ROperation;
+  begin
+    Result := aOperation1;
+    if aOperation2.Operation in aOperationType then
+      Result := aOperation2;
+  end;
+
+  procedure PrintOutputs;
+  var
+    Wires: TDictionary<string, boolean>;
+    Exptected, ProgramResult, i, j: int64;
+  begin
+    Wires := TDictionary<string, boolean>.Create;
+
+    for i := 0 to 44 do
+    begin
+      Wires.Clear;
+      for j := 0 to 44 do
+      begin
+        Wires.Add(WireName('x', j), false);
+        Wires.Add(WireName('y', j), false);
+      end;
+
+      Wires[WireName('x', i)] := true;
+      ProgramResult := RunProgram(Wires);
+      Exptected := Int64(1) shl i;
+      Writeln('Bitindex ', i);
+      Writeln('Expected ', IntToBits(Exptected));
+      Writeln('Result   ', IntToBits(ProgramResult))
+    end;
+    Wires.Free;
+  end;
+
+var
+  CurrentBitIndex: integer;
+  Operation, Operation1, Operation2, CorrectOperation, InvalidOperation, AlreadyCorrectOperation: ROperation;
+  PrevXor, PrevOr, prevAnd, And4, And5, CurrentXor, CurrentOr: ROperation;
+begin
+//  for CurrentBitIndex := 0 to 44 do
+//    PrintOperations(WireName('z', CurrentBitIndex), 0);
+//  PrintOutputs;
+
+  SwappedOperations := TStringList.Create;
+
+{ Bit 0, we expect the following
+    z00
+      x00 XOR y00
+}
+
+  Operation := FOperations['z00'];
+  if not Operation.Equals(tXor, 'x00', 'y00') then
+  begin
+    CorrectOperation := FindOperationByParams(tXor, 'x00', 'y00');
+    SwapOperations(Operation, CorrectOperation);
+  end;
+
+{ Bit 1, we expect the following
+  z01 =
+  XOR
+    XOR
+      y01
+      x01
+    AND
+      y00
+      x00
+
+}
+  Operation := FOperations['z01'];
+  PrevXor := FindOperationByParams(tXor, 'x01', 'y01');
+  prevAnd := FindOperationByParams(tAnd, 'x00', 'y00');
+  if not Operation.Equals(tXor, PrevXor.TargetAdress, prevAnd.TargetAdress) then
+  begin
+    if Operation.Operation <> tXor then
+    begin
+      CorrectOperation := FindOperationByParams(tXor, PrevXor.TargetAdress, prevAnd.TargetAdress);
+      SwapOperations(Operation, CorrectOperation);
+    end
+    else
+    begin
+      Operation1 := FOperations[Operation.Adress1];
+      Operation2 := FOperations[Operation.Adress2];
+
+      InvalidOperation := PickOperationByType([tOR], Operation1, Operation2);
+      AlreadyCorrectOperation := PickOperationByType([tXor, tAnd], Operation1, Operation2);
+      CorrectOperation := PickOperationByType([tAnd, tXor] - [AlreadyCorrectOperation.Operation], CurrentXor, CurrentOr);
+
+      SwapOperations(InvalidOperation, CorrectOperation);
+    end;
+  end;
+
+{ Bit 2, we expect the following
+z02
+XOR
+  OR
+    AND
+      y01
+      x01
+    AND
+      XOR -> This can be retrieved from bit 1
+        y01..
+        x01..
+      AND -> This can also be found in bit 1
+        y00..
+        x00..
+  XOR
+    y02
+    x02
+}
+
+  // This might not work if bit 2 is invalid, but thats not the case in my input...
+  Operation := FOperations['z02'];
+  CurrentXor := FindOperationByParams(tXor, 'x02', 'x02');
+  PrevOr := FOperations[Operation.OtherAdress(CurrentXor.TargetAdress)];
+  PrevXor := CurrentXor;
+
+{ Bit n, We expect the following operations
+  Zn =
+  XOR(1)
+    XOR(2)
+      Xn
+      Yn
+    OR(3)
+      AND(4)
+        Xn-1
+        Yn-1
+      AND(5)
+        XOR(6) -> This should be the same as bit n-1, operation 2
+          Yn-1
+          Xn-1
+        OR(7) -> This should be the same as bit n-1, operation
+          Xn-2
+          Yn-2
+}
+
+  CurrentBitIndex := 3;
+  while FOperations.TryGetValue(WireName('z', CurrentBitIndex), Operation) do
+  begin
+    if SwappedOperations.Count = 8 then
+      Break;
+
+    And5 := FindOperationByParams(tAnd, PrevXor.TargetAdress, PrevOr.TargetAdress);
+    And4 := FindOperationByParams(tAnd, WireName('x', CurrentBitIndex-1), WireName('y', CurrentBitIndex -1));
+    CurrentOr := FindOperationByParams(tOr, And4.TargetAdress, And5.TargetAdress);
+    CurrentXor := FindOperationByParams(tXor, WireName('x', CurrentBitIndex), WireName('y', CurrentBitIndex));
+
+    if not Operation.Equals(tXor, CurrentOr.TargetAdress, CurrentXor.TargetAdress) then
+    begin
+      if Operation.Operation <> tXor then // The root operation is not ok
+      begin
+        CorrectOperation := FindOperationByParams(tXor, CurrentXor.TargetAdress, CurrentOr.TargetAdress);
+        SwapOperations(Operation, CorrectOperation);
+      end
+      else // One of the operations of the root is not ok
+      begin
+        Operation1 := FOperations[Operation.Adress1];
+        Operation2 := FOperations[Operation.Adress2];
+
+        InvalidOperation := PickOperationByType([tAnd], Operation1, Operation2);
+        AlreadyCorrectOperation := PickOperationByType([tOr, tXor], Operation1, Operation2);
+        CorrectOperation := PickOperationByType([tOr, tXor] - [AlreadyCorrectOperation.Operation], CurrentXor, CurrentOr);
+
+        SwapOperations(InvalidOperation, CorrectOperation);
+      end;
+    end
+    else
+    begin
+      PrevOr := CurrentOr;
+      PrevXor := CurrentXor;
+      inc(CurrentBitIndex);
+    end;
+  end;
+
+  SwappedOperations.Delimiter := ',';
+  SwappedOperations.Sort;
+  Result := SwappedOperations.DelimitedText;
+  SwappedOperations.Free;
+end;
+{$ENDREGION}
 
 {$REGION 'Placeholder'}
 function TAdventOfCodeDay.SolveA: Variant;
@@ -2595,7 +2981,6 @@ begin
 end;
 {$ENDREGION}
 
-
 initialization
 
 RegisterClasses([
@@ -2603,7 +2988,7 @@ RegisterClasses([
   TAdventOfCodeDay6, TAdventOfCodeDay7, TAdventOfCodeDay8, TAdventOfCodeDay9, TAdventOfCodeDay10,
   TAdventOfCodeDay11,TAdventOfCodeDay12,TAdventOfCodeDay13,TAdventOfCodeDay14,TAdventOfCodeDay15,
   TAdventOfCodeDay16,TAdventOfCodeDay17,TAdventOfCodeDay18,TAdventOfCodeDay19,TAdventOfCodeDay20,
-  TAdventOfCodeDay2, TAdventOfCodeDay22,TAdventOfCodeDay23
+  TAdventOfCodeDay2, TAdventOfCodeDay22,TAdventOfCodeDay23,TAdventOfCodeDay24
   ]);
 
 end.
