@@ -1447,30 +1447,20 @@ begin
 end;
 
 type TUndoData = record
-  x, y: int64;
+  Position: TPosition;
   Element: TWarehouseElement;
-  class function CreateAsString(aPosition: TPosition; aElement: TWarehouseElement): string; static;
-  class function CreateFromString(aString: string): TUndoData; static;
-  end;
-
-class function TUndoData.CreateAsString(aPosition: TPosition; aElement: TWarehouseElement): string;
-begin
-  Result := aPosition.x.ToString + '-' + aPosition.y.ToString + '-' + Ord(aElement).ToString;
+  class function Create(aPosition: TPosition; aElement: TWarehouseElement): TUndoData; static;
 end;
 
-class function TUndoData.CreateFromString(aString: string): TUndoData;
-var
-  Split: TSTringDynArray;
+class function TUndoData.Create(aPosition: TPosition; aElement: TWarehouseElement): TUndoData;
 begin
-  Split := SplitString(aString, '-');
-  Result.X := Split[0].ToInteger;
-  Result.y := Split[1].ToInteger;
-  Result.Element := TWarehouseElement(Split[2].ToInteger);
+  Result.Position := aPosition;
+  Result.Element := aElement;
 end;
 
 procedure TAdventOfCodeDay15.MoveRobot(aWareHouse: TAocGrid<TWarehouseElement>; aRobotStartPosition: TPosition; aCommands: string);
 var
-  UndoStack: TStack<string>;
+  UndoStack: TStack<TUndoData>;
 
   function _SimpleMove(aCurrentPosition: TPosition; aDirection: TAOCDirection): boolean;
   var
@@ -1491,6 +1481,12 @@ var
 
     aWareHouse.SetData(aCurrentPosition, Empty);
     aWareHouse.SetData(TargetPosition, CurrentElement);
+  end;
+
+  procedure SetElementWithUndo(aPostion: TPosition; aNewElement: TWarehouseElement);
+  begin
+    UndoStack.Push(TUndoData.Create(aPostion, aWareHouse.GetValue(aPostion)));
+    aWareHouse.SetData(aPostion, aNewElement);
   end;
 
   function _MoveUpDown(aCurrentPosition: TPosition; aDirection: TAocDirection): Boolean;
@@ -1522,15 +1518,11 @@ var
     if not Result then
       Exit(False);
 
-    UndoStack.Push(TUndoData.CreateAsString(aCurrentPosition, CurrentElement));
-    UndoStack.Push(TUndoData.CreateAsString(TargetPosition, Empty));
-    UndoStack.Push(TUndoData.CreateAsString(NeighborPosition, NeighborElement));
-    UndoStack.Push(TUndoData.CreateAsString(NeighborTargetPosition, Empty));
 
-    aWareHouse.SetData(aCurrentPosition, Empty);
-    aWareHouse.SetData(TargetPosition, CurrentElement);
-    aWareHouse.SetData(NeighborPosition, Empty);
-    aWareHouse.SetData(NeighborTargetPosition, NeighborElement);
+    SetElementWithUndo(aCurrentPosition, Empty);
+    SetElementWithUndo(TargetPosition, CurrentElement);
+    SetElementWithUndo(NeighborPosition, Empty);
+    SetElementWithUndo(NeighborTargetPosition, NeighborElement);
   end;
 
 var
@@ -1540,7 +1532,7 @@ var
   Element: TWarehouseElement;
   UndoData: TUndoData;
 begin
-  UndoStack := TStack<String>.Create;
+  UndoStack := TStack<TUndoData>.Create;
   RobotPosition := aRobotStartPosition;
   aWareHouse.SetData(RobotPosition, Empty);
 
@@ -1565,8 +1557,8 @@ begin
       begin
         while UndoStack.Count > 0 do
         begin
-          UndoData := TUndoData.CreateFromString(UndoStack.Pop);
-          aWareHouse.SetData(TPosition.Create(UndoData.X, UndoData.Y), UndoData.Element);
+          UndoData := UndoStack.Pop;
+          aWareHouse.SetData(UndoData.Position, UndoData.Element);
         end
       end
     end;
